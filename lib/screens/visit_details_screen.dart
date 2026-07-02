@@ -1,85 +1,405 @@
 import 'package:flutter/material.dart';
-import 'package:medical_app/services/firestore_service.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import 'package:googleapis/drive/v3.dart' as drive;
-import 'package:google_sign_in/google_sign_in.dart';
+import '../models/visit.dart';
 
-class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({super.key});
-  @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
-}
+class VisitDetailsScreen extends StatelessWidget {
+  final Visit visit;
 
-class _ReportsScreenState extends State<ReportsScreen> {
-  DateTimeRange? _dateRange;
-  final FirestoreService _service = FirestoreService();
+  const VisitDetailsScreen({super.key, required this.visit});
 
-  Future<void> _selectDateRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null) setState(() => _dateRange = picked);
-  }
-
-  Future<void> _generateAndUpload() async {
-    if (_dateRange == null) return;
-    // جلب الزيارات في النطاق (يمكنك استخدام firestore مع where)
-    final visitsQuery = await FirebaseFirestore.instance
-        .collection('visits')
-        .where('visitDate', isGreaterThanOrEqualTo: _dateRange!.start.toIso8601String())
-        .where('visitDate', isLessThanOrEqualTo: _dateRange!.end.toIso8601String())
-        .get();
-    final visits = visitsQuery.docs.map((doc) => Visit.fromMap(doc.id, doc.data())).toList();
-
-    // بناء PDF
+  Future<void> _generatePdf(BuildContext context) async {
     final pdf = pw.Document();
-    pdf.addPage(pw.MultiPage(
-      build: (ctx) => [
-        pw.Header(text: 'Collective Report (${_dateRange!.start.toIso8601String()} - ${_dateRange!.end.toIso8601String()})'),
-        ...visits.map((v) => pw.Column(
-          children: [
-            pw.Text('Patient: ${v.patientId}, Procedure: ${v.procedure}'),
-            pw.Text('Date: ${v.visitDate.toIso8601String()}'),
+
+    // إضافة صفحة للتقرير
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (pw.Context context) {
+          return [
+            // رأس التقرير
+            pw.Header(
+              level: 0,
+              child: pw.Text(
+                'Medical Visit Report',
+                style: pw.TextStyle(
+                  fontSize: 24,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 20),
+
+            // تاريخ الزيارة
+            pw.Text(
+              'Date: ${visit.visitDate.toString().substring(0, 10)}',
+              style: const pw.TextStyle(fontSize: 14),
+            ),
+            pw.SizedBox(height: 20),
             pw.Divider(),
-          ],
-        )),
-      ],
-    ));
+            pw.SizedBox(height: 20),
+
+            // الإجراء الطبي
+            pw.Text(
+              'Procedure:',
+              style: pw.TextStyle(
+                fontSize: 16,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              visit.procedure,
+              style: const pw.TextStyle(fontSize: 14),
+            ),
+            pw.SizedBox(height: 16),
+
+            // التوصيات
+            if (visit.recommendations.isNotEmpty) ...[
+              pw.Text(
+                'Recommendations:',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                visit.recommendations,
+                style: const pw.TextStyle(fontSize: 14),
+              ),
+              pw.SizedBox(height: 16),
+            ],
+
+            // العلاجات
+            if (visit.treatments.isNotEmpty) ...[
+              pw.Text(
+                'Treatments:',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.TableHelper.fromTextArray(
+                headers: ['Medicine', 'Dose', 'Duration'],
+                data: visit.treatments.map((t) => [
+                  t.medicineName,
+                  t.dose,
+                  t.duration,
+                ]).toList(),
+                border: pw.TableBorder.all(),
+                headerStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 16),
+            ],
+
+            // الملاحظات
+            if (visit.notes.isNotEmpty) ...[
+              pw.Text(
+                'Additional Notes:',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                visit.notes,
+                style: const pw.TextStyle(fontSize: 14),
+              ),
+              pw.SizedBox(height: 16),
+            ],
+
+            // المرفقات
+            if (visit.attachments.isNotEmpty) ...[
+              pw.Text(
+                'Attachments:',
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 8),
+              ...visit.attachments.map((att) => pw.Text(
+                '• ${att.description.isNotEmpty ? att.description : att.type}',
+                style: const pw.TextStyle(fontSize: 12),
+              )),
+            ],
+
+            pw.SizedBox(height: 40),
+            pw.Divider(),
+            pw.SizedBox(height: 8),
+
+            // تذييل التقرير
+            pw.Text(
+              'Generated by Medical Records App',
+              style: pw.TextStyle(
+                fontSize: 10,
+                color: PdfColors.grey,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ];
+        },
+      ),
+    );
+
+    // حفظ ومشاركة PDF
     final output = await getTemporaryDirectory();
-    final file = File('${output.path}/report.pdf');
+    final file = File('${output.path}/visit_report.pdf');
     await file.writeAsBytes(await pdf.save());
 
-    // رفع إلى Google Drive (تحتاج OAuth)
-    final googleSignIn = GoogleSignIn.standard(scopes: [drive.DriveApi.driveFileScope]);
-    final googleUser = await googleSignIn.signIn();
-    final authHeaders = await googleUser!.authentication;
-    final authClient = GoogleAuthClient(authHeaders);
-    final driveApi = drive.DriveApi(authClient);
-    final drive.File driveFile = drive.File();
-    driveFile.name = 'Medical_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-    await driveApi.files.create(driveFile, uploadMedia: drive.Media(file.openRead(), file.lengthSync()));
-
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report uploaded to Google Drive')));
+    if (context.mounted) {
+      await Printing.sharePdf(
+        bytes: await pdf.save(),
+        filename: 'visit_report_${visit.visitDate.toString().substring(0, 10)}.pdf',
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
-      body: Center(
+      appBar: AppBar(
+        title: const Text('Visit Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: () => _generatePdf(context),
+            tooltip: 'Generate PDF Report',
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ElevatedButton(onPressed: _selectDateRange, child: const Text('Select Date Range')),
-            if (_dateRange != null)
-              Text('${_dateRange!.start.toIso8601String()} - ${_dateRange!.end.toIso8601String()}'),
-            ElevatedButton(onPressed: _generateAndUpload, child: const Text('Generate & Upload to Drive')),
+            // تاريخ الزيارة
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, color: Colors.blue.shade700),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Date: ${visit.visitDate.toString().substring(0, 10)}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // الإجراء الطبي
+            _buildSection(
+              icon: Icons.medical_services,
+              title: 'Procedure',
+              content: visit.procedure,
+              color: Colors.blue,
+            ),
+            const SizedBox(height: 16),
+
+            // التوصيات
+            if (visit.recommendations.isNotEmpty) ...[
+              _buildSection(
+                icon: Icons.lightbulb,
+                title: 'Recommendations',
+                content: visit.recommendations,
+                color: Colors.orange,
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // العلاجات
+            if (visit.treatments.isNotEmpty) ...[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.medication, color: Colors.green.shade700),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Treatments',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ...visit.treatments.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final treatment = entry.value;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${index + 1}. ${treatment.medicineName}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text('Dose: ${treatment.dose}'),
+                              Text('Duration: ${treatment.duration}'),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // الملاحظات
+            if (visit.notes.isNotEmpty) ...[
+              _buildSection(
+                icon: Icons.note,
+                title: 'Additional Notes',
+                content: visit.notes,
+                color: Colors.purple,
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // المرفقات
+            if (visit.attachments.isNotEmpty) ...[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.attachment, color: Colors.red.shade700),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Attachments',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: visit.attachments.map((att) {
+                          return GestureDetector(
+                            onTap: () {
+                              // عرض الصورة بالحجم الكامل
+                              showDialog(
+                                context: context,
+                                builder: (context) => Dialog(
+                                  child: InteractiveViewer(
+                                    child: Image.network(
+                                      att.fileUrl,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  att.fileUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return const Icon(
+                                      Icons.broken_image,
+                                      size: 40,
+                                      color: Colors.grey,
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ويدجت مساعد لعرض الأقسام
+  Widget _buildSection({
+    required IconData icon,
+    required String title,
+    required String content,
+    required MaterialColor color, // تم تصحيح هذا السطر لمنع خطأ البناء
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color.shade700),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: color.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              content,
+              style: const TextStyle(fontSize: 16),
+            ),
           ],
         ),
       ),
