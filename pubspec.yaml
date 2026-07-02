@@ -49,22 +49,3 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
-
-  # الخطوط العربية
-  fonts:
-    - family: Cairo
-      fonts:
-        - asset: assets/fonts/Cairo-Regular.ttf
-        - asset: assets/fonts/Cairo-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/Cairo-Light.ttf
-          weight: 300
-        - asset: assets/fonts/Cairo-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Cairo-SemiBold.ttf
-          weight: 600
-
-  # صور وأصول التطبيق
-  assets:
-    - assets/images/
-    - assets/icons/
