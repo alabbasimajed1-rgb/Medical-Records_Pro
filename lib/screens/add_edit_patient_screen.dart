@@ -1,86 +1,224 @@
 import 'package:flutter/material.dart';
-import 'package:medical_app/services/firestore_service.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
-import 'package:googleapis/drive/v3.dart' as drive;
-import 'package:google_sign_in/google_sign_in.dart';
+import '../models/patient.dart';
+import '../services/firestore_service.dart';
 
-class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({super.key});
+class AddEditPatientScreen extends StatefulWidget {
+  final Patient? patient; // null يعني إضافة جديدة، غير null يعني تعديل
+
+  const AddEditPatientScreen({super.key, this.patient});
+
   @override
-  State<ReportsScreen> createState() => _ReportsScreenState();
+  State<AddEditPatientScreen> createState() => _AddEditPatientScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> {
-  DateTimeRange? _dateRange;
-  final FirestoreService _service = FirestoreService();
+class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _ageController;
+  late TextEditingController _historyController;
+  final FirestoreService _firestoreService = FirestoreService();
+  bool _isSaving = false;
 
-  Future<void> _selectDateRange() async {
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(
+      text: widget.patient?.fullName ?? '',
     );
-    if (picked != null) setState(() => _dateRange = picked);
+    _ageController = TextEditingController(
+      text: widget.patient?.age.toString() ?? '',
+    );
+    _historyController = TextEditingController(
+      text: widget.patient?.medicalHistory ?? '',
+    );
   }
 
-  Future<void> _generateAndUpload() async {
-    if (_dateRange == null) return;
-    // جلب الزيارات في النطاق (يمكنك استخدام firestore مع where)
-    final visitsQuery = await FirebaseFirestore.instance
-        .collection('visits')
-        .where('visitDate', isGreaterThanOrEqualTo: _dateRange!.start.toIso8601String())
-        .where('visitDate', isLessThanOrEqualTo: _dateRange!.end.toIso8601String())
-        .get();
-    final visits = visitsQuery.docs.map((doc) => Visit.fromMap(doc.id, doc.data())).toList();
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _ageController.dispose();
+    _historyController.dispose();
+    super.dispose();
+  }
 
-    // بناء PDF
-    final pdf = pw.Document();
-    pdf.addPage(pw.MultiPage(
-      build: (ctx) => [
-        pw.Header(text: 'Collective Report (${_dateRange!.start.toIso8601String()} - ${_dateRange!.end.toIso8601String()})'),
-        ...visits.map((v) => pw.Column(
-          children: [
-            pw.Text('Patient: ${v.patientId}, Procedure: ${v.procedure}'),
-            pw.Text('Date: ${v.visitDate.toIso8601String()}'),
-            pw.Divider(),
-          ],
-        )),
-      ],
-    ));
-    final output = await getTemporaryDirectory();
-    final file = File('${output.path}/report.pdf');
-    await file.writeAsBytes(await pdf.save());
+  Future<void> _save() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isSaving = true;
+      });
 
-    // رفع إلى Google Drive (تحتاج OAuth)
-    final googleSignIn = GoogleSignIn.standard(scopes: [drive.DriveApi.driveFileScope]);
-    final googleUser = await googleSignIn.signIn();
-    final authHeaders = await googleUser!.authentication;
-    final authClient = GoogleAuthClient(authHeaders);
-    final driveApi = drive.DriveApi(authClient);
-    final drive.File driveFile = drive.File();
-    driveFile.name = 'Medical_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-    await driveApi.files.create(driveFile, uploadMedia: drive.Media(file.openRead(), file.lengthSync()));
+      try {
+        final patient = Patient(
+          fullName: _nameController.text.trim(),
+          age: int.parse(_ageController.text.trim()),
+          medicalHistory: _historyController.text.trim(),
+        );
 
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report uploaded to Google Drive')));
+        if (widget.patient == null) {
+          // إضافة مريض جديد
+          await _firestoreService.addPatient(patient);
+        } else {
+          // تعديل مريض موجود
+          await _firestoreService.updatePatient(widget.patient!.id!, patient);
+        }
+
+        if (mounted) {
+          Navigator.pop(context, true); // إرجاع true للإشارة إلى نجاح العملية
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSaving = false;
+          });
+        }
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.patient != null;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Reports')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(onPressed: _selectDateRange, child: const Text('Select Date Range')),
-            if (_dateRange != null)
-              Text('${_dateRange!.start.toIso8601String()} - ${_dateRange!.end.toIso8601String()}'),
-            ElevatedButton(onPressed: _generateAndUpload, child: const Text('Generate & Upload to Drive')),
-          ],
+      appBar: AppBar(
+        title: Text(isEditing ? 'Edit Patient' : 'Add Patient'),
+        actions: [
+          // زر حذف المريض (يظهر فقط في وضع التعديل)
+          if (isEditing)
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Patient'),
+                    content: Text(
+                      'Are you sure you want to delete ${widget.patient!.fullName}?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Delete',
+                            style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true && mounted) {
+                  try {
+                    await _firestoreService.deletePatient(widget.patient!.id!);
+                    Navigator.pop(context, true);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: ${e.toString()}')),
+                    );
+                  }
+                }
+              },
+            ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // حقل الاسم
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter patient name';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // حقل العمر
+              TextFormField(
+                controller: _ageController,
+                decoration: const InputDecoration(
+                  labelText: 'Age',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter patient age';
+                  }
+                  final age = int.tryParse(value);
+                  if (age == null || age < 0 || age > 150) {
+                    return 'Please enter a valid age (0-150)';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // حقل التاريخ المرضي
+              TextFormField(
+                controller: _historyController,
+                decoration: const InputDecoration(
+                  labelText: 'Medical History',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.medical_services),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 5,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter medical history';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // زر الحفظ
+              ElevatedButton(
+                onPressed: _isSaving ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        isEditing ? 'Update Patient' : 'Add Patient',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
