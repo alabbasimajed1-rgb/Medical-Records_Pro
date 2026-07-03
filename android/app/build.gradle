@@ -6,41 +6,39 @@ plugins {
 
 android {
     namespace "com.example.medical_app"
-    compileSdk 35
-    ndkVersion flutter.ndkVersion
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = "1.8"
     }
 
     defaultConfig {
-        applicationId "com.example.medical_app"
-        minSdk 23
-        targetSdk 35
-        versionCode 1
-        versionName "1.0"
-        multiDexEnabled true
+        applicationId = "com.example.medical_app"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig = signingConfigs.debug
         }
     }
 }
 
 flutter {
-    source '../..'
+    source = "../.."
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
-    implementation platform("com.google.firebase:firebase-bom:33.0.0")
+    implementation platform("com.google.firebase:firebase-bom:33.9.0")
     implementation "com.google.firebase:firebase-auth"
     implementation "com.google.firebase:firebase-firestore"
     implementation "com.google.firebase:firebase-storage"
