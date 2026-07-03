@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace "com.example.medical_app"
-    compileSdk 35
+    compileSdk 34
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -21,7 +21,7 @@ android {
     defaultConfig {
         applicationId "com.example.medical_app"
         minSdk 23
-        targetSdk 35
+        targetSdk 34
         versionCode 1
         versionName "1.0"
         multiDexEnabled true
@@ -39,8 +39,8 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.1.0"
-    implementation platform("com.google.firebase:firebase-bom:33.0.0")
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
+    implementation platform("com.google.firebase:firebase-bom:32.7.0")
     implementation "com.google.firebase:firebase-auth"
     implementation "com.google.firebase:firebase-firestore"
     implementation "com.google.firebase:firebase-storage"
