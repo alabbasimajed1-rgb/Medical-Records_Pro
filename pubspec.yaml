@@ -1,5 +1,5 @@
 name: medical_app
-description: Medical Records Application for managing patients and visits.
+description: Medical Records Application
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -10,35 +10,23 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Firebase
-  firebase_core: ^3.6.0
-  cloud_firestore: ^5.4.0
-  firebase_storage: ^12.3.0
-  firebase_auth: ^5.3.0
+  # Firebase - إصدارات قديمة متوافقة
+  firebase_core: ^2.24.2
+  cloud_firestore: ^4.13.6
+  firebase_storage: ^11.5.6
+  firebase_auth: ^4.15.3
 
-  # الترجمة واللغات
+  # باقي الحزم
   flutter_localizations:
     sdk: flutter
   intl: ^0.19.0
-
-  # التقاط الصور
   image_picker: ^1.1.2
-
-  # إنشاء ومشاركة PDF
   pdf: ^3.10.8
   printing: ^5.12.0
-
-  # حفظ الملفات المؤقتة
   path_provider: ^2.1.3
-
-  # Google Sign-In و Drive (للاستخدام المستقبلي)
   google_sign_in: ^6.2.1
   googleapis: ^13.2.0
-
-  # إشعارات سريعة
   fluttertoast: ^8.2.4
-
-  # أيقونات إضافية
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
