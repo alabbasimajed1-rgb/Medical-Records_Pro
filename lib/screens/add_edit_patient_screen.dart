@@ -48,10 +48,14 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
       });
 
       try {
+        // التعديل الأهم: إضافة firstVisitDate بناءً على حالة المريض
         final patient = Patient(
+          id: widget.patient?.id, // الحفاظ على الـ ID إذا كنا في وضع التعديل
           fullName: _nameController.text.trim(),
           age: int.parse(_ageController.text.trim()),
           medicalHistory: _historyController.text.trim(),
+          // إذا كان المريض موجوداً نأخذ تاريخه القديم، وإذا كان جديداً نأخذ تاريخ اليوم
+          firstVisitDate: widget.patient?.firstVisitDate ?? DateTime.now(), 
         );
 
         if (widget.patient == null) {
@@ -198,6 +202,8 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
               ElevatedButton(
                 onPressed: _isSaving ? null : _save,
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue, // جعلنا لون الزر أزرق ليتناسب مع التطبيق
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -214,7 +220,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
                       )
                     : Text(
                         isEditing ? 'Update Patient' : 'Add Patient',
-                        style: const TextStyle(fontSize: 16),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ],
