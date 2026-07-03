@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/patient.dart';
 import '../services/firestore_service.dart';
 import 'add_edit_patient_screen.dart';
@@ -62,7 +61,19 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
                 }
 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('No patients found'));
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.people_outline, size: 80, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          'No patients found.',
+                          style: TextStyle(fontSize: 20, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  );
                 }
 
                 List<Patient> patients = snapshot.data!;
@@ -104,7 +115,10 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
                           patient.fullName,
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text('Age: ${patient.age}'),
+                        // التعديل هنا: عرض العمر وتاريخ الزيارة الأولى معاً
+                        subtitle: Text(
+                          'Age: ${patient.age} | First Visit: ${patient.firstVisitDate.toString().substring(0, 10)}',
+                        ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
                           Navigator.push(
@@ -124,7 +138,10 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
           ),
         ],
       ),
+      // زر إضافة مريض جديد
       floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
         onPressed: () {
           Navigator.push(
             context,
