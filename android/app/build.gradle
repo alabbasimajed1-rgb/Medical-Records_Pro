@@ -2,13 +2,12 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
-    // أضفنا هذا السطر للربط مع google-services.json
     id "com.google.gms.google-services"
 }
 
 android {
     namespace "com.example.medical_app"
-    compileSdk 34
+    compileSdk 35
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -23,7 +22,7 @@ android {
     defaultConfig {
         applicationId "com.example.medical_app"
         minSdk 23
-        targetSdk 34
+        targetSdk 35
         versionCode 1
         versionName "1.0"
         multiDexEnabled true
@@ -42,7 +41,6 @@ flutter {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
-    // نستخدم الـ BOM لضمان توافق نسخ Firebase
     implementation platform("com.google.firebase:firebase-bom:32.7.0")
     implementation "com.google.firebase:firebase-auth"
     implementation "com.google.firebase:firebase-firestore"
