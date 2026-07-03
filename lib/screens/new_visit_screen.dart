@@ -164,17 +164,25 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
       });
 
       try {
-        // رفع الصور أولاً
-        List<Attachment> attachments = [];
+        // التحسين الجديد: رفع جميع الصور في نفس الوقت (Parallel Upload)
+        List<Future<String>> uploadTasks = [];
         for (int i = 0; i < _imagesToUpload.length; i++) {
-          final url = await _firestoreService.uploadImage(
+          uploadTasks.add(_firestoreService.uploadImage(
             _imagesToUpload[i],
             'visits/${widget.patientId}',
-          );
+          ));
+        }
+
+        // انتظار اكتمال رفع جميع الصور معاً
+        List<String> uploadedUrls = await Future.wait(uploadTasks);
+
+        // ربط الروابط الجديدة بالوصف
+        List<Attachment> attachments = [];
+        for (int i = 0; i < uploadedUrls.length; i++) {
           attachments.add(Attachment(
             type: 'photo',
             description: _imageDescriptions[i],
-            fileUrl: url,
+            fileUrl: uploadedUrls[i],
           ));
         }
 
