@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-// تأكد من أن هذا المسار صحيح لشاشة تسجيل الدخول الخاصة بك
+import 'package:firebase_core/firebase_core.dart'; 
 import 'screens/login_screen.dart'; 
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  
   runApp(const MyApp());
 }
 
@@ -13,7 +16,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SplashScreen(), // فصلنا الشاشة لتسهيل الكود
+      home: SplashScreen(), 
     );
   }
 }
@@ -32,30 +35,28 @@ class SplashScreen extends StatelessWidget {
             const Icon(Icons.medical_services, size: 100, color: Colors.white),
             const SizedBox(height: 20),
             const Text(
-              'Medical App',
+              'Medical-Records_Pro', 
               style: TextStyle(
-                fontSize: 30, 
+                fontSize: 28, // تم تعديل الحجم قليلاً ليتناسب مع طول الاسم
                 color: Colors.white, 
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 50), // مسافة فاصلة قبل الزر
+            const SizedBox(height: 50),
             
-            // الزر الجديد للانتقال إلى شاشة الدخول
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white, // لون الزر
-                foregroundColor: Colors.blue, // لون النص
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.blue,
                 padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
               ),
               onPressed: () {
-                // أمر الانتقال إلى شاشة تسجيل الدخول
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (context) => const LoginScreen()),
                 );
               },
               child: const Text(
-                "الدخول للتطبيق", 
+                "Get Started", 
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
