@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'screens/login_screen.dart';
 
 void main() {
-  // نقوم بتشغيل واجهة التطبيق فوراً دون انتظار Firebase هنا
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
@@ -20,7 +19,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// حولنا الشاشة إلى StatefulWidget لكي نتمكن من تشغيل كود الاتصال بداخلها
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -29,26 +27,34 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  String statusText = "Connecting to Database..."; // نص حالة الاتصال
+  String statusText = "Connecting to Database..."; 
   bool isError = false;
   bool isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeFirebase(); // بدء الاتصال بمجرد فتح الشاشة الزرقاء
+    _initializeFirebase(); 
   }
 
   Future<void> _initializeFirebase() async {
     try {
-      await Firebase.initializeApp();
-      // إذا نجح الاتصال، نظهر زر الدخول
+      // الحل السحري: تمرير المفاتيح مباشرة متجاوزين ملف الـ JSON!
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyC5MHDAaguF81KaUV_JO_WD4ScTs1HD7fA",
+          appId: "1:104334827144:android:7925c2cb0dc2171c9e493d",
+          messagingSenderId: "104334827144",
+          projectId: "medical-records-pro",
+          storageBucket: "medical-records-pro.firebasestorage.app",
+        ),
+      );
+      
       setState(() {
         isInitialized = true;
         statusText = "Connected Successfully!";
       });
     } catch (e) {
-      // إذا فشل الاتصال، نطبع الخطأ على الشاشة لنعرف المشكلة بالضبط!
       setState(() {
         isError = true;
         statusText = "Error: $e";
@@ -79,7 +85,6 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               const SizedBox(height: 40),
               
-              // عرض حالة الاتصال بـ Firebase
               Text(
                 statusText,
                 style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -87,11 +92,9 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               const SizedBox(height: 30),
 
-              // عرض دائرة تحميل أثناء محاولة الاتصال
               if (!isInitialized && !isError)
                 const CircularProgressIndicator(color: Colors.white),
 
-              // إذا نجح الاتصال، نعرض الزر
               if (isInitialized)
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
