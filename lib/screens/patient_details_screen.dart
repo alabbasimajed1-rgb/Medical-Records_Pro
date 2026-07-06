@@ -272,3 +272,62 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
                         leading: CircleAvatar(
                           backgroundColor: Colors.green.shade50,
                           radius: 25,
+                          child: Icon(Icons.medical_services, color: Colors.green.shade600),
+                        ),
+                        title: Text(
+                          visit.procedure,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 8.0), // تم تصحيح هذا السطر
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                                  const SizedBox(width: 4),
+                                  Text(visit.visitDate.toString().substring(0, 10)),
+                                ],
+                              ),
+                              if (visit.treatments.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.medication, size: 14, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        visit.treatments,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => VisitDetailsScreen(visit: visit),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
+  }
+}
