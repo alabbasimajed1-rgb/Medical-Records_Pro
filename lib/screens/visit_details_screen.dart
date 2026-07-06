@@ -11,126 +11,68 @@ class VisitDetailsScreen extends StatelessWidget {
 
   const VisitDetailsScreen({super.key, required this.visit});
 
+  // --- دالة توليد تقرير PDF الاحترافي ---
   Future<void> _generatePdf(BuildContext context) async {
     final pdf = pw.Document();
 
-    // إضافة صفحة للتقرير
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         build: (pw.Context context) {
           return [
-            // رأس التقرير
+            // ترويسة التقرير (يمكنك لاحقاً تغييرها لاسم عيادتك)
             pw.Header(
               level: 0,
-              child: pw.Text(
-                'Medical Visit Report',
-                style: pw.TextStyle(
-                  fontSize: 24,
-                  fontWeight: pw.FontWeight.bold,
-                ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    'Medical Visit Report',
+                    style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800),
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Text(
+                    'Date: ${visit.visitDate.toString().substring(0, 10)}',
+                    style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey700),
+                  ),
+                ],
               ),
             ),
             pw.SizedBox(height: 20),
 
-            // تاريخ الزيارة
-            pw.Text(
-              'Date: ${visit.visitDate.toString().substring(0, 10)}',
-              style: const pw.TextStyle(fontSize: 14),
-            ),
-            pw.SizedBox(height: 20),
-            pw.Divider(),
-            pw.SizedBox(height: 20),
+            // 1. الإجراء الطبي / الشكوى الرئيسية
+            _buildPdfSection('Procedure / Chief Complaint:', visit.procedure),
 
-            // الإجراء الطبي
-            pw.Text(
-              'Procedure:',
-              style: pw.TextStyle(
-                fontSize: 16,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-            pw.SizedBox(height: 8),
-            pw.Text(
-              visit.procedure,
-              style: const pw.TextStyle(fontSize: 14),
-            ),
-            pw.SizedBox(height: 16),
+            // 2. الفحوصات
+            if (visit.investigations.isNotEmpty)
+              _buildPdfSection('Investigations & Imaging:', visit.investigations),
 
-            // التوصيات
-            if (visit.recommendations.isNotEmpty) ...[
-              pw.Text(
-                'Recommendations:',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
+            // 3. العلاجات
+            if (visit.treatments.isNotEmpty)
+              _buildPdfSection('Prescribed Treatments:', visit.treatments),
+
+            // 4. النصائح وإيقاف الأدوية
+            if (visit.advices.isNotEmpty)
+              _buildPdfSection('Medical Advices:', visit.advices),
+
+            // 5. موعد الزيارة القادمة
+            if (visit.nextVisitDate != null) ...[
+              pw.SizedBox(height: 10),
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.blue50,
+                  border: pw.Border.all(color: PdfColors.blue200),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Row(
+                  children: [
+                    pw.Text('Next Visit Scheduled For: ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text(visit.nextVisitDate!.toString().substring(0, 10)),
+                  ],
                 ),
               ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                visit.recommendations,
-                style: const pw.TextStyle(fontSize: 14),
-              ),
-              pw.SizedBox(height: 16),
-            ],
-
-            // العلاجات
-            if (visit.treatments.isNotEmpty) ...[
-              pw.Text(
-                'Treatments:',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.TableHelper.fromTextArray(
-                headers: ['Medicine', 'Dose', 'Duration'],
-                data: visit.treatments.map((t) => [
-                  t.medicineName,
-                  t.dose,
-                  t.duration,
-                ]).toList(),
-                border: pw.TableBorder.all(),
-                headerStyle: pw.TextStyle(
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 16),
-            ],
-
-            // الملاحظات
-            if (visit.notes.isNotEmpty) ...[
-              pw.Text(
-                'Additional Notes:',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                visit.notes,
-                style: const pw.TextStyle(fontSize: 14),
-              ),
-              pw.SizedBox(height: 16),
-            ],
-
-            // المرفقات
-            if (visit.attachments.isNotEmpty) ...[
-              pw.Text(
-                'Attachments:',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 8),
-              ...visit.attachments.map((att) => pw.Text(
-                '• ${att.description.isNotEmpty ? att.description : att.type}',
-                style: const pw.TextStyle(fontSize: 12),
-              )),
             ],
 
             pw.SizedBox(height: 40),
@@ -139,11 +81,8 @@ class VisitDetailsScreen extends StatelessWidget {
 
             // تذييل التقرير
             pw.Text(
-              'Generated by Medical Records App',
-              style: pw.TextStyle(
-                fontSize: 10,
-                color: PdfColors.grey,
-              ),
+              'Generated by Medical-Records_Pro App',
+              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey),
               textAlign: pw.TextAlign.center,
             ),
           ];
@@ -152,255 +91,159 @@ class VisitDetailsScreen extends StatelessWidget {
     );
 
     // حفظ ومشاركة PDF
-    final output = await getTemporaryDirectory();
-    final file = File('${output.path}/visit_report.pdf');
-    await file.writeAsBytes(await pdf.save());
-
-    if (context.mounted) {
-      await Printing.sharePdf(
-        bytes: await pdf.save(),
-        filename: 'visit_report_${visit.visitDate.toString().substring(0, 10)}.pdf',
-      );
+    try {
+      if (context.mounted) {
+        await Printing.sharePdf(
+          bytes: await pdf.save(),
+          filename: 'visit_report_${visit.visitDate.toString().substring(0, 10)}.pdf',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating PDF: $e')),
+        );
+      }
     }
   }
 
+  // أداة مساعدة لتنسيق أقسام الـ PDF
+  pw.Widget _buildPdfSection(String title, String content) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(title, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
+        pw.SizedBox(height: 6),
+        pw.Text(content, style: const pw.TextStyle(fontSize: 12, lineSpacing: 1.5)),
+        pw.SizedBox(height: 16),
+      ],
+    );
+  }
+
+  // --- واجهة المستخدم (شاشة الهاتف) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Visit Details'),
+        title: const Text('Visit Record'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
             onPressed: () => _generatePdf(context),
-            tooltip: 'Generate PDF Report',
+            tooltip: 'Export to PDF',
           ),
         ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // تاريخ الزيارة
+            // بطاقة تاريخ الزيارة
             Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(Icons.calendar_today, color: Colors.blue.shade700),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Date: ${visit.visitDate.toString().substring(0, 10)}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+              elevation: 2,
+              child: ListTile(
+                leading: const Icon(Icons.calendar_today, color: Colors.blue),
+                title: const Text('Visit Date', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(
+                  visit.visitDate.toString().substring(0, 10),
+                  style: const TextStyle(fontSize: 16, color: Colors.black87),
                 ),
               ),
             ),
             const SizedBox(height: 16),
 
-            // الإجراء الطبي
+            // الأقسام السريرية
             _buildSection(
               icon: Icons.medical_services,
-              title: 'Procedure',
+              title: 'Procedure / Chief Complaint',
               content: visit.procedure,
               color: Colors.blue,
             ),
-            const SizedBox(height: 16),
 
-            // التوصيات
-            if (visit.recommendations.isNotEmpty) ...[
+            if (visit.investigations.isNotEmpty)
               _buildSection(
-                icon: Icons.lightbulb,
-                title: 'Recommendations',
-                content: visit.recommendations,
-                color: Colors.orange,
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // العلاجات
-            if (visit.treatments.isNotEmpty) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.medication, color: Colors.green.shade700),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Treatments',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ...visit.treatments.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final treatment = entry.value;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.green.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${index + 1}. ${treatment.medicineName}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text('Dose: ${treatment.dose}'),
-                              Text('Duration: ${treatment.duration}'),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // الملاحظات
-            if (visit.notes.isNotEmpty) ...[
-              _buildSection(
-                icon: Icons.note,
-                title: 'Additional Notes',
-                content: visit.notes,
+                icon: Icons.biotech,
+                title: 'Investigations & Imaging',
+                content: visit.investigations,
                 color: Colors.purple,
               ),
-              const SizedBox(height: 16),
-            ],
 
-            // المرفقات
-            if (visit.attachments.isNotEmpty) ...[
+            if (visit.treatments.isNotEmpty)
+              _buildSection(
+                icon: Icons.medication,
+                title: 'Treatments Prescribed',
+                content: visit.treatments,
+                color: Colors.green,
+              ),
+
+            if (visit.advices.isNotEmpty)
+              _buildSection(
+                icon: Icons.lightbulb,
+                title: 'Medical Advices',
+                content: visit.advices,
+                color: Colors.orange,
+              ),
+
+            // موعد الزيارة القادمة
+            if (visit.nextVisitDate != null)
               Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.attachment, color: Colors.red.shade700),
-                          const SizedBox(width: 12),
-                          const Text(
-                            'Attachments',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: visit.attachments.map((att) {
-                          return GestureDetector(
-                            onTap: () {
-                              // عرض الصورة بالحجم الكامل
-                              showDialog(
-                                context: context,
-                                builder: (context) => Dialog(
-                                  child: InteractiveViewer(
-                                    child: Image.network(
-                                      att.fileUrl,
-                                      fit: BoxFit.contain,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  att.fileUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return const Icon(
-                                      Icons.broken_image,
-                                      size: 40,
-                                      color: Colors.grey,
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
+                elevation: 2,
+                color: Colors.blue.shade50,
+                child: ListTile(
+                  leading: const Icon(Icons.event_available, color: Colors.blue),
+                  title: const Text('Next Visit Scheduled', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                    visit.nextVisitDate!.toString().substring(0, 10),
+                    style: const TextStyle(fontSize: 16, color: Colors.blue, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  // ويدجت مساعد لعرض الأقسام
+  // ويدجت مساعد لعرض الأقسام في شاشة الهاتف
   Widget _buildSection({
     required IconData icon,
     required String title,
     required String content,
-    required MaterialColor color, // تم تصحيح هذا السطر لمنع خطأ البناء
+    required Color color, // تم تعديلها إلى Color لتجنب أخطاء البناء
   }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color.shade700),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: color.shade700,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        elevation: 2,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color),
+                  const SizedBox(width: 12),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              content,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ],
+                ],
+              ),
+              const Divider(height: 24),
+              Text(
+                content,
+                style: const TextStyle(fontSize: 15, height: 1.5),
+              ),
+            ],
+          ),
         ),
       ),
     );
