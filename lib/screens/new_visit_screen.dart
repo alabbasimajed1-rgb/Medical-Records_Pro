@@ -1,8 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../models/visit.dart';
-import '../models/treatment.dart';
 import '../services/firestore_service.dart';
 
 class NewVisitScreen extends StatefulWidget {
@@ -18,23 +15,15 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
   final _formKey = GlobalKey<FormState>();
   final FirestoreService _firestoreService = FirestoreService();
 
-  // متحكمات النصوص
+  // متحكمات النصوص السريرية
   final TextEditingController _procedureController = TextEditingController();
-  final TextEditingController _recommendationsController = TextEditingController();
-  final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _investigationsController = TextEditingController();
+  final TextEditingController _treatmentsController = TextEditingController();
+  final TextEditingController _advicesController = TextEditingController();
 
-  // قائمة العلاجات
-  final List<Treatment> _treatments = [];
-
-  // قائمة الصور الملتقطة
-  final List<File> _imagesToUpload = [];
-  final List<String> _imageDescriptions = [];
-
-  // أداة التقاط الصور
-  final ImagePicker _picker = ImagePicker();
-
-  // تاريخ الزيارة
+  // التواريخ
   DateTime _visitDate = DateTime.now();
+  DateTime? _nextVisitDate; // اختياري
 
   // حالة الحفظ
   bool _isSaving = false;
@@ -42,31 +31,14 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
   @override
   void dispose() {
     _procedureController.dispose();
-    _recommendationsController.dispose();
-    _notesController.dispose();
+    _investigationsController.dispose();
+    _treatmentsController.dispose();
+    _advicesController.dispose();
     super.dispose();
   }
 
-  // إضافة علاج جديد
-  void _addTreatment() {
-    setState(() {
-      _treatments.add(Treatment(
-        medicineName: '',
-        dose: '',
-        duration: '',
-      ));
-    });
-  }
-
-  // حذف علاج
-  void _removeTreatment(int index) {
-    setState(() {
-      _treatments.removeAt(index);
-    });
-  }
-
-  // اختيار تاريخ الزيارة
-  Future<void> _selectDate() async {
+  // اختيار تاريخ الزيارة الحالية
+  Future<void> _selectVisitDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: _visitDate,
@@ -80,121 +52,38 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
     }
   }
 
-  // التقاط صورة من الكاميرا أو المعرض
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final XFile? image = await _picker.pickImage(
-        source: source,
-        imageQuality: 80,
-      );
-      if (image != null) {
-        // طلب وصف للصورة
-        final description = await _showDescriptionDialog();
-        setState(() {
-          _imagesToUpload.add(File(image.path));
-          _imageDescriptions.add(description ?? '');
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking image: ${e.toString()}')),
-        );
-      }
-    }
-  }
-
-  // نافذة وصف الصورة
-  Future<String?> _showDescriptionDialog() async {
-    final controller = TextEditingController();
-    return showDialog<String>(
+  // اختيار تاريخ الزيارة القادمة (المراجعة)
+  Future<void> _selectNextVisitDate() async {
+    final picked = await showDatePicker(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Image Description'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: 'e.g., X-ray, Lab report...',
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Skip'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
+      initialDate: _nextVisitDate ?? DateTime.now().add(const Duration(days: 7)),
+      firstDate: DateTime.now(), // المراجعة يجب أن تكون في المستقبل
+      lastDate: DateTime(2030),
     );
-  }
-
-  // حذف صورة
-  void _removeImage(int index) {
-    setState(() {
-      _imagesToUpload.removeAt(index);
-      _imageDescriptions.removeAt(index);
-    });
+    if (picked != null) {
+      setState(() {
+        _nextVisitDate = picked;
+      });
+    }
   }
 
   // حفظ الزيارة
   Future<void> _save() async {
     if (_formKey.currentState!.validate()) {
-      // التحقق من وجود علاجات مكتملة
-      for (var treatment in _treatments) {
-        if (treatment.medicineName.isEmpty ||
-            treatment.dose.isEmpty ||
-            treatment.duration.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please complete all treatment fields'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-      }
-
       setState(() {
         _isSaving = true;
       });
 
       try {
-        // التحسين الجديد: رفع جميع الصور في نفس الوقت (Parallel Upload)
-        List<Future<String>> uploadTasks = [];
-        for (int i = 0; i < _imagesToUpload.length; i++) {
-          uploadTasks.add(_firestoreService.uploadImage(
-            _imagesToUpload[i],
-            'visits/${widget.patientId}',
-          ));
-        }
-
-        // انتظار اكتمال رفع جميع الصور معاً
-        List<String> uploadedUrls = await Future.wait(uploadTasks);
-
-        // ربط الروابط الجديدة بالوصف
-        List<Attachment> attachments = [];
-        for (int i = 0; i < uploadedUrls.length; i++) {
-          attachments.add(Attachment(
-            type: 'photo',
-            description: _imageDescriptions[i],
-            fileUrl: uploadedUrls[i],
-          ));
-        }
-
-        // إنشاء كائن الزيارة
+        // إنشاء كائن الزيارة بالهيكلة الطبية الجديدة
         final visit = Visit(
           patientId: widget.patientId,
           visitDate: _visitDate,
           procedure: _procedureController.text.trim(),
-          recommendations: _recommendationsController.text.trim(),
-          treatments: _treatments,
-          notes: _notesController.text.trim(),
-          attachments: attachments,
+          investigations: _investigationsController.text.trim(),
+          treatments: _treatmentsController.text.trim(),
+          advices: _advicesController.text.trim(),
+          nextVisitDate: _nextVisitDate,
         );
 
         // حفظ الزيارة في Firestore
@@ -232,53 +121,38 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Visit'),
-        actions: [
-          TextButton(
-            onPressed: _isSaving ? null : _save,
-            child: _isSaving
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text(
-                    'Save',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-          ),
-        ],
+        title: const Text('Add New Visit'),
+        backgroundColor: Colors.blue,
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // تاريخ الزيارة
+              // --- تاريخ الزيارة ---
               Card(
+                elevation: 2,
                 child: ListTile(
                   leading: const Icon(Icons.calendar_today, color: Colors.blue),
-                  title: const Text('Visit Date'),
+                  title: const Text('Visit Date', style: TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(
                     '${_visitDate.year}-${_visitDate.month.toString().padLeft(2, '0')}-${_visitDate.day.toString().padLeft(2, '0')}',
                   ),
-                  trailing: const Icon(Icons.edit_calendar),
-                  onTap: _selectDate,
+                  trailing: const Icon(Icons.edit, color: Colors.grey),
+                  onTap: _selectVisitDate,
                 ),
               ),
               const SizedBox(height: 16),
 
-              // الإجراء الطبي
+              // --- الإجراء الطبي ---
               TextFormField(
                 controller: _procedureController,
                 decoration: const InputDecoration(
-                  labelText: 'Procedure *',
-                  hintText: 'e.g., Tooth extraction, Blood test...',
+                  labelText: 'Procedure / Chief Complaint *',
+                  hintText: 'e.g., Follow up, Routine check...',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.medical_services),
                 ),
@@ -291,219 +165,99 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
               ),
               const SizedBox(height: 16),
 
-              // التوصيات
+              // --- الفحوصات الجديدة ---
               TextFormField(
-                controller: _recommendationsController,
+                controller: _investigationsController,
                 decoration: const InputDecoration(
-                  labelText: 'Recommendations',
-                  hintText: 'e.g., Rest for 2 days...',
+                  labelText: 'New Investigations & Imaging',
+                  hintText: 'Results of new tests for this visit...',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.biotech),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+
+              // --- العلاجات المضافة ---
+              TextFormField(
+                controller: _treatmentsController,
+                decoration: const InputDecoration(
+                  labelText: 'Treatments Prescribed',
+                  hintText: 'Write medicines and doses here...',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.medication),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 4,
+              ),
+              const SizedBox(height: 16),
+
+              // --- النصائح / إيقاف الأدوية ---
+              TextFormField(
+                controller: _advicesController,
+                decoration: const InputDecoration(
+                  labelText: 'Advices (e.g., Stop medication X)',
+                  hintText: 'Diet, precautions, or stopped meds...',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.lightbulb),
+                  alignLabelWithHint: true,
                 ),
                 maxLines: 3,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              // قسم العلاجات
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Treatments',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+              // --- موعد الزيارة القادمة ---
+              Card(
+                elevation: 2,
+                color: Colors.blue.shade50,
+                child: ListTile(
+                  leading: const Icon(Icons.event_available, color: Colors.blue),
+                  title: const Text('Next Visit Date (Optional)', style: TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                    _nextVisitDate != null 
+                        ? '${_nextVisitDate!.year}-${_nextVisitDate!.month.toString().padLeft(2, '0')}-${_nextVisitDate!.day.toString().padLeft(2, '0')}'
+                        : 'Not Scheduled',
+                    style: TextStyle(color: _nextVisitDate != null ? Colors.black : Colors.grey),
                   ),
-                  TextButton.icon(
-                    onPressed: _addTreatment,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Treatment'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // قائمة العلاجات
-              ..._treatments.asMap().entries.map((entry) {
-                final index = entry.key;
-                final treatment = entry.value;
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Treatment ${index + 1}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _removeTreatment(index),
-                              iconSize: 20,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            labelText: 'Medicine Name *',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.medication),
-                            isDense: true,
-                          ),
-                          onChanged: (value) => treatment.medicineName = value,
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            labelText: 'Dose *',
-                            hintText: 'e.g., 500mg, 2 tablets',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.format_list_numbered),
-                            isDense: true,
-                          ),
-                          onChanged: (value) => treatment.dose = value,
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          decoration: const InputDecoration(
-                            labelText: 'Duration *',
-                            hintText: 'e.g., 3 days, 1 week',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.timer),
-                            isDense: true,
-                          ),
-                          onChanged: (value) => treatment.duration = value,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 24),
-
-              // الملاحظات
-              TextFormField(
-                controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Additional Notes',
-                  hintText: 'Any extra observations...',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.note),
+                  trailing: _nextVisitDate != null 
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.red),
+                          onPressed: () => setState(() => _nextVisitDate = null),
+                        )
+                      : const Icon(Icons.add_circle, color: Colors.blue),
+                  onTap: _selectNextVisitDate,
                 ),
-                maxLines: 3,
+              ),
+              const SizedBox(height: 32),
+
+              // --- زر الحفظ ---
+              ElevatedButton(
+                onPressed: _isSaving ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue, // لون بارز
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 2,
+                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Save Visit Record',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
               ),
               const SizedBox(height: 24),
-
-              // المرفقات
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Attachments',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => _pickImage(ImageSource.camera),
-                        icon: const Icon(Icons.camera_alt),
-                        tooltip: 'Take Photo',
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.blue.shade50,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: () => _pickImage(ImageSource.gallery),
-                        icon: const Icon(Icons.photo_library),
-                        tooltip: 'Pick from Gallery',
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.green.shade50,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // عرض الصور الملتقطة
-              if (_imagesToUpload.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _imagesToUpload.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final image = entry.value;
-                    return Stack(
-                      children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.file(
-                              image,
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: GestureDetector(
-                            onTap: () => _removeImage(index),
-                            child: Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.close,
-                                size: 16,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (_imageDescriptions[index].isNotEmpty)
-                          Positioned(
-                            bottom: 0,
-                            left: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              color: Colors.black54,
-                              child: Text(
-                                _imageDescriptions[index],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  }).toList(),
-                ),
             ],
           ),
         ),
