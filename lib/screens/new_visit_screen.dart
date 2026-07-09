@@ -147,18 +147,18 @@ class _NewVisitScreenState extends State<NewVisitScreen> {
               ),
               const SizedBox(height: 16),
 
-              // --- الإجراء الطبي ---
+              // --- الشكوى الجديدة ---
               TextFormField(
                 controller: _procedureController,
                 decoration: const InputDecoration(
-                  labelText: 'Procedure / Chief Complaint *',
+                  labelText: 'New complaint *',
                   hintText: 'e.g., Follow up, Routine check...',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.medical_services),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter the procedure';
+                    return 'Please enter the new complaint';
                   }
                   return null;
                 },
