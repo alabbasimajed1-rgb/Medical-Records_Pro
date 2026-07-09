@@ -25,20 +25,44 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50, // لون خلفية مريح للعين
       body: Column(
         children: [
-          // شريط البحث
-          Padding(
-            padding: const EdgeInsets.all(16.0),
+          // شريط البحث الذكي (تصميم عائم واحترافي)
+          Container(
+            margin: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0, bottom: 8.0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withOpacity(0.1),
+                  spreadRadius: 2,
+                  blurRadius: 10,
+                  offset: const Offset(0, 4), // تأثير ظل خفيف
+                ),
+              ],
+            ),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search patients...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                hintText: 'Search patient by name...',
+                hintStyle: TextStyle(color: Colors.grey.shade400),
+                prefixIcon: const Icon(Icons.search, color: Colors.blue),
+                // زر المسح (X) يظهر فقط عند وجود نص
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.cancel, color: Colors.grey),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               ),
               onChanged: (value) {
                 setState(() {
@@ -47,6 +71,7 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
               },
             ),
           ),
+          
           // قائمة المرضى
           Expanded(
             child: StreamBuilder<List<Patient>>(
@@ -61,15 +86,15 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
                 }
 
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.people_outline, size: 80, color: Colors.grey),
-                        SizedBox(height: 16),
+                        Icon(Icons.folder_shared_outlined, size: 80, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
                         Text(
-                          'No patients found.',
-                          style: TextStyle(fontSize: 20, color: Colors.grey),
+                          'No patients recorded yet.',
+                          style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
                         ),
                       ],
                     ),
@@ -78,7 +103,7 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
 
                 List<Patient> patients = snapshot.data!;
 
-                // تصفية حسب البحث
+                // تصفية حسب البحث الذكي
                 if (_searchQuery.isNotEmpty) {
                   patients = patients.where((patient) {
                     return patient.fullName.toLowerCase().contains(_searchQuery);
@@ -86,46 +111,62 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
                 }
 
                 if (patients.isEmpty) {
-                  return const Center(child: Text('No patients match your search'));
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 60, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        const Text('No patients match your search', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                      ],
+                    ),
+                  );
                 }
 
                 return ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 80, top: 8), // مسافة سفلية لعدم تغطية الزر العائم
                   itemCount: patients.length,
                   itemBuilder: (context, index) {
                     final patient = patients[index];
                     return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         leading: CircleAvatar(
-                          backgroundColor: Colors.blue.shade100,
+                          radius: 25,
+                          backgroundColor: Colors.blue.shade50,
                           child: Text(
                             patient.fullName.isNotEmpty
                                 ? patient.fullName[0].toUpperCase()
                                 : '?',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: Colors.blue,
+                              fontSize: 20,
+                              color: Colors.blue.shade700,
                             ),
                           ),
                         ),
                         title: Text(
                           patient.fullName,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
-                        // التعديل هنا: عرض العمر وتاريخ الزيارة الأولى معاً
-                        subtitle: Text(
-                          'Age: ${patient.age} | First Visit: ${patient.firstVisitDate.toString().substring(0, 10)}',
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Text(
+                            'Age: ${patient.age} | First Visit: ${patient.firstVisitDate.toString().substring(0, 10)}',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          ),
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.blue.shade300),
                         onTap: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  PatientDetailsScreen(patient: patient),
+                              builder: (context) => PatientDetailsScreen(patient: patient),
                             ),
                           );
                         },
@@ -138,10 +179,12 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
           ),
         ],
       ),
+      
       // زر إضافة مريض جديد
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.blue,
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.blue.shade700,
         foregroundColor: Colors.white,
+        elevation: 4,
         onPressed: () {
           Navigator.push(
             context,
@@ -150,7 +193,8 @@ class _PatientsListScreenState extends State<PatientsListScreen> {
             ),
           );
         },
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.person_add_alt_1),
+        label: const Text("New Patient", style: TextStyle(fontWeight: FontWeight.bold)),
       ),
     );
   }
