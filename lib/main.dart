@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'screens/home_screen.dart'; // تأكد من اسم ملف الشاشة الرئيسية لديك
 import 'screens/login_screen.dart';
 
 void main() {
@@ -29,17 +31,15 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   String statusText = "Connecting to Database..."; 
   bool isError = false;
-  bool isInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeFirebase(); 
+    _initializeAndCheckAuth(); 
   }
 
-  Future<void> _initializeFirebase() async {
+  Future<void> _initializeAndCheckAuth() async {
     try {
-      // الحل السحري: تمرير المفاتيح مباشرة متجاوزين ملف الـ JSON!
       await Firebase.initializeApp(
         options: const FirebaseOptions(
           apiKey: "AIzaSyC5MHDAaguF81KaUV_JO_WD4ScTs1HD7fA",
@@ -51,9 +51,27 @@ class _SplashScreenState extends State<SplashScreen> {
       );
       
       setState(() {
-        isInitialized = true;
         statusText = "Connected Successfully!";
       });
+
+      // انتظار ثانية واحدة لتظهر رسالة النجاح للمستخدم
+      await Future.delayed(const Duration(seconds: 1));
+
+      // فحص حالة تسجيل الدخول وتوجيه المستخدم تلقائياً
+      if (mounted) {
+        User? user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          // المستخدم مسجل دخوله مسبقاً -> الذهاب للشاشة الرئيسية
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const HomeScreen()), // استبدل HomeScreen باسم شاشتك
+          );
+        } else {
+          // لا يوجد مستخدم مسجل -> الذهاب لشاشة الدخول
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+          );
+        }
+      }
     } catch (e) {
       setState(() {
         isError = true;
@@ -92,26 +110,9 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               const SizedBox(height: 30),
 
-              if (!isInitialized && !isError)
+              // سيظل مؤشر التحميل يدور حتى يتم الانتقال التلقائي
+              if (!isError)
                 const CircularProgressIndicator(color: Colors.white),
-
-              if (isInitialized)
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    );
-                  },
-                  child: const Text(
-                    "Get Started",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
             ],
           ),
         ),
