@@ -19,6 +19,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
   // تعريف متحكمات النصوص لجميع الحقول
   late TextEditingController _nameController;
   late TextEditingController _ageController;
+  late TextEditingController _chiefComplaintController; // متحكم الشكوى الرئيسية
   late TextEditingController _historyController;
   late TextEditingController _investigationController;
   late TextEditingController _diffDiagnosisController;
@@ -33,6 +34,8 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.patient?.fullName ?? '');
     _ageController = TextEditingController(text: widget.patient?.age.toString() ?? '');
+    // إضافة الشكوى الرئيسية
+    _chiefComplaintController = TextEditingController(text: widget.patient?.chiefComplaint ?? '');
     _historyController = TextEditingController(text: widget.patient?.medicalHistory ?? '');
     _investigationController = TextEditingController(text: widget.patient?.investigationAndImaging ?? '');
     _diffDiagnosisController = TextEditingController(text: widget.patient?.differentialDiagnosis ?? '');
@@ -49,6 +52,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
   void dispose() {
     _nameController.dispose();
     _ageController.dispose();
+    _chiefComplaintController.dispose(); // إغلاق المتحكم
     _historyController.dispose();
     _investigationController.dispose();
     _diffDiagnosisController.dispose();
@@ -68,7 +72,8 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
           id: widget.patient?.id, 
           fullName: _nameController.text.trim(),
           age: int.parse(_ageController.text.trim()),
-          gender: _selectedGender, // حفظ النوع
+          gender: _selectedGender, 
+          chiefComplaint: _chiefComplaintController.text.trim(), // حفظ الشكوى الرئيسية
           medicalHistory: _historyController.text.trim(),
           investigationAndImaging: _investigationController.text.trim(),
           differentialDiagnosis: _diffDiagnosisController.text.trim(),
@@ -205,7 +210,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.wc, size: 20),
                       ),
-                      items: const [
+                        items: const [
                         DropdownMenuItem(value: 'Male', child: Text('Male')),
                         DropdownMenuItem(value: 'Female', child: Text('Female')),
                       ],
@@ -217,6 +222,25 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
                     ),
                   ),
                 ],
+              ),
+              const Divider(height: 32, thickness: 1),
+
+              // --- القسم الجديد: الشكوى الرئيسية ---
+              const Text(
+                'Chief Complaint',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+              ),
+              const SizedBox(height: 12),
+
+              TextFormField(
+                controller: _chiefComplaintController,
+                decoration: const InputDecoration(
+                  labelText: 'Chief Complaint',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 3,
+                validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
               ),
               const Divider(height: 32, thickness: 1),
 
