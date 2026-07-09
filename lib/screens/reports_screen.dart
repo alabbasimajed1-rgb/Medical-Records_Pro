@@ -61,8 +61,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       final visitsQuery = await visitsQueryRef.get();
 
+      // **تم تصحيح الخطأ في هذا السطر**
       var visits = visitsQuery.docs
-          .map((doc) => Visit.fromMap(doc.id, doc.data()))
+          .map((doc) => Visit.fromMap(doc.id, doc.data() as Map<String, dynamic>))
           .toList();
 
       // فلترة محلية للمريض المختار (لتجنب مشاكل الـ Indexing في فايربيس)
