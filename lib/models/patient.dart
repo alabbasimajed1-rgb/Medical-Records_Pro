@@ -3,6 +3,7 @@ class Patient {
   final String fullName;
   final int age;
   final String gender; // النوع (Male/Female)
+  final String chiefComplaint; // الشكوى الرئيسية الأساسية (الحقل الجديد)
   final String medicalHistory;
   final String investigationAndImaging; // الفحوصات ونتائج الأشعة
   final String differentialDiagnosis; // التشخيص المبدئي
@@ -15,6 +16,7 @@ class Patient {
     required this.fullName,
     required this.age,
     required this.gender,
+    required this.chiefComplaint, // تمت الإضافة هنا
     required this.medicalHistory,
     required this.investigationAndImaging,
     required this.differentialDiagnosis,
@@ -27,6 +29,7 @@ class Patient {
         'fullName': fullName,
         'age': age,
         'gender': gender,
+        'chiefComplaint': chiefComplaint, // تمت الإضافة للرفع إلى القاعدة
         'medicalHistory': medicalHistory,
         'investigationAndImaging': investigationAndImaging,
         'differentialDiagnosis': differentialDiagnosis,
@@ -39,8 +42,8 @@ class Patient {
         id: id,
         fullName: map['fullName'] ?? '',
         age: map['age'] ?? 0,
-        // وضعنا قيماً افتراضية حتى لا تظهر أخطاء مع المرضى القدامى
-        gender: map['gender'] ?? 'Unknown', 
+        gender: map['gender'] ?? 'Unknown',
+        chiefComplaint: map['chiefComplaint'] ?? '', // قراءة الشكوى أو تركها فارغة للمرضى القدامى
         medicalHistory: map['medicalHistory'] ?? '',
         investigationAndImaging: map['investigationAndImaging'] ?? '',
         differentialDiagnosis: map['differentialDiagnosis'] ?? '',
