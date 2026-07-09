@@ -6,6 +6,8 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../models/visit.dart';
+import '../models/patient.dart';
+import '../services/firestore_service.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -15,7 +17,9 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   DateTimeRange? _dateRange;
+  Patient? _selectedPatient;
   bool _isGenerating = false;
+  final FirestoreService _firestoreService = FirestoreService();
 
   Future<void> _selectDateRange() async {
     final picked = await showDateRangePicker(
@@ -26,9 +30,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Colors.blue.shade700, // لون الهيدر
-              onPrimary: Colors.white, // لون النص في الهيدر
-              onSurface: Colors.black, // لون الأيام
+              primary: Colors.blue.shade700, 
+              onPrimary: Colors.white, 
+              onSurface: Colors.black, 
             ),
           ),
           child: child!,
@@ -41,27 +45,35 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> _generatePdf() async {
-    if (_dateRange == null) return;
-
     setState(() {
       _isGenerating = true;
     });
 
     try {
-      final visitsQuery = await FirebaseFirestore.instance
-          .collection('visits')
-          .where('visitDate', isGreaterThanOrEqualTo: _dateRange!.start.toIso8601String())
-          .where('visitDate', isLessThanOrEqualTo: _dateRange!.end.toIso8601String())
-          .get();
+      Query visitsQueryRef = FirebaseFirestore.instance.collection('visits');
 
-      final visits = visitsQuery.docs
+      // فلترة التواريخ من السيرفر (إذا تم تحديد تاريخ)
+      if (_dateRange != null) {
+        visitsQueryRef = visitsQueryRef
+            .where('visitDate', isGreaterThanOrEqualTo: _dateRange!.start.toIso8601String())
+            .where('visitDate', isLessThanOrEqualTo: _dateRange!.end.toIso8601String());
+      }
+
+      final visitsQuery = await visitsQueryRef.get();
+
+      var visits = visitsQuery.docs
           .map((doc) => Visit.fromMap(doc.id, doc.data()))
           .toList();
+
+      // فلترة محلية للمريض المختار (لتجنب مشاكل الـ Indexing في فايربيس)
+      if (_selectedPatient != null) {
+        visits = visits.where((v) => v.patientId == _selectedPatient!.id).toList();
+      }
 
       if (visits.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No records found for this period.')),
+            const SnackBar(content: Text('No records found for the selected criteria.')),
           );
         }
         setState(() {
@@ -70,9 +82,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
         return;
       }
 
+      // ترتيب الزيارات من الأحدث للأقدم
+      visits.sort((a, b) => b.visitDate.compareTo(a.visitDate));
+
       final pdf = pw.Document();
       
-      // تصميم ترويسة التقرير بشكل احترافي
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
@@ -83,22 +97,52 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
-                  pw.Text('CLINICAL VISITS REPORT', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
+                  pw.Text(
+                    _selectedPatient != null ? 'PATIENT MEDICAL RECORD' : 'CLINICAL VISITS REPORT', 
+                    style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)
+                  ),
                   pw.SizedBox(height: 8),
                   pw.Text('Dr. Majed Abbas', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
                   pw.Text('Consultant Anesthesia & Intensive Care', style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
                   pw.SizedBox(height: 12),
-                  pw.Container(
-                    padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: pw.BoxDecoration(
-                      color: PdfColors.grey200,
-                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                  
+                  // معلومات المريض إذا تم اختياره
+                  if (_selectedPatient != null) ...[
+                    pw.Container(
+                      width: double.infinity,
+                      padding: const pw.EdgeInsets.all(10),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.grey100,
+                        border: pw.Border.all(color: PdfColors.grey400),
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Patient Name: ${_selectedPatient!.fullName}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                          pw.SizedBox(height: 4),
+                          pw.Text('Age: ${_selectedPatient!.age} | Gender: ${_selectedPatient!.gender}'),
+                          pw.SizedBox(height: 4),
+                          pw.Text('Chief Complaint: ${_selectedPatient!.chiefComplaint}', style: pw.TextStyle(fontStyle: pw.FontStyle.italic, color: PdfColors.grey800)),
+                        ]
+                      )
                     ),
-                    child: pw.Text(
-                      'Period: ${_dateRange!.start.toString().substring(0, 10)}  TO  ${_dateRange!.end.toString().substring(0, 10)}',
-                      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                    pw.SizedBox(height: 12),
+                  ],
+
+                  // إظهار فترة التاريخ إذا تم تحديدها
+                  if (_dateRange != null)
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.grey200,
+                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                      ),
+                      child: pw.Text(
+                        'Period: ${_dateRange!.start.toString().substring(0, 10)}  TO  ${_dateRange!.end.toString().substring(0, 10)}',
+                        style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                      ),
                     ),
-                  ),
                   pw.SizedBox(height: 20),
                 ],
               ),
@@ -115,21 +159,29 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text('Date: ${v.visitDate.toString().substring(0, 10)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                          // إذا كان هناك حقل لاسم المريض في موديل الزيارة يمكنك إضافته هنا
-                        ],
-                      ),
+                      pw.Text('Visit Date: ${v.visitDate.toString().substring(0, 10)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
                       pw.Divider(color: PdfColors.grey300),
                       pw.SizedBox(height: 5),
-                      pw.Text('Procedure / Complaint:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
+                      
+                      pw.Text('New complaint / Procedure:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
                       pw.Text(v.procedure),
                       pw.SizedBox(height: 8),
+                      
+                      if (v.investigations.isNotEmpty) ...[
+                        pw.Text('Investigations:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
+                        pw.Text(v.investigations),
+                        pw.SizedBox(height: 8),
+                      ],
+                      
                       if (v.treatments.isNotEmpty) ...[
                         pw.Text('Treatments Prescribed:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
                         pw.Text(v.treatments),
+                        pw.SizedBox(height: 8),
+                      ],
+
+                      if (v.advices.isNotEmpty) ...[
+                        pw.Text('Advices:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
+                        pw.Text(v.advices),
                       ],
                     ],
                   ),
@@ -139,9 +191,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       );
 
       final output = await getTemporaryDirectory();
-      final file = File('${output.path}/Clinical_Report.pdf');
+      String fileName = _selectedPatient != null 
+          ? 'Report_${_selectedPatient!.fullName.replaceAll(' ', '_')}.pdf'
+          : 'Clinical_Report.pdf';
+          
+      final file = File('${output.path}/$fileName');
       await file.writeAsBytes(await pdf.save());
-      await Printing.sharePdf(bytes: await pdf.save(), filename: 'Clinical_Report_${_dateRange!.start.toString().substring(0, 10)}.pdf');
+      await Printing.sharePdf(bytes: await pdf.save(), filename: fileName);
       
     } catch (e) {
       if (mounted) {
@@ -167,13 +223,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
         elevation: 0,
       ),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.analytics_outlined, size: 100, color: Colors.blue.shade200),
-              const SizedBox(height: 24),
+              Icon(Icons.analytics_outlined, size: 80, color: Colors.blue.shade200),
+              const SizedBox(height: 16),
               const Text(
                 'Generate Clinical Reports',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -181,18 +237,72 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Select a date range to export a comprehensive PDF report of all patient visits.',
+                'Select a patient or a date range (or both) to export a comprehensive PDF report.',
                 style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
               
-              // بطاقة اختيار التاريخ
+              // 1. بطاقة اختيار المريض
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: StreamBuilder<List<Patient>>(
+                    stream: _firestoreService.getPatients(),
+                    builder: (context, snapshot) {
+                      List<Patient> patients = snapshot.data ?? [];
+                      return DropdownButtonHideUnderline(
+                        child: DropdownButton<Patient?>(
+                          isExpanded: true,
+                          value: _selectedPatient,
+                          hint: Row(
+                            children: [
+                              Icon(Icons.groups, color: Colors.blue.shade700),
+                              const SizedBox(width: 16),
+                              const Text('All Patients (Global Report)', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ]
+                          ),
+                          items: [
+                            DropdownMenuItem<Patient?>(
+                              value: null,
+                              child: Row(
+                                children: [
+                                  Icon(Icons.groups, color: Colors.blue.shade700),
+                                  const SizedBox(width: 16),
+                                  const Text('All Patients (Global)', style: TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                            ...patients.map((p) => DropdownMenuItem<Patient?>(
+                              value: p,
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.person, color: Colors.grey),
+                                  const SizedBox(width: 16),
+                                  Text(p.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            )),
+                          ],
+                          onChanged: (val) {
+                            setState(() => _selectedPatient = val);
+                          },
+                        ),
+                      );
+                    }
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 2. بطاقة اختيار التاريخ
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   leading: CircleAvatar(
                     backgroundColor: Colors.blue.shade50,
                     child: Icon(Icons.calendar_month, color: Colors.blue.shade700),
@@ -203,23 +313,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                   subtitle: Text(
                     _dateRange == null 
-                        ? 'Tap to pick dates' 
+                        ? 'All Time' 
                         : '${_dateRange!.start.toString().substring(0, 10)}  to  ${_dateRange!.end.toString().substring(0, 10)}',
                     style: TextStyle(color: _dateRange == null ? Colors.grey : Colors.blue.shade800),
                   ),
-                  trailing: const Icon(Icons.edit, size: 20),
+                  trailing: _dateRange != null 
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.red),
+                          onPressed: () => setState(() => _dateRange = null),
+                        )
+                      : const Icon(Icons.edit, size: 20),
                   onTap: _selectDateRange,
                 ),
               ),
               
               const SizedBox(height: 32),
               
-              // زر توليد التقرير
+              // 3. زر توليد التقرير
               SizedBox(
                 width: double.infinity,
                 height: 55,
                 child: ElevatedButton.icon(
-                  onPressed: (_dateRange != null && !_isGenerating) ? _generatePdf : null,
+                  onPressed: _isGenerating ? null : _generatePdf,
                   icon: _isGenerating 
                       ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Icon(Icons.picture_as_pdf),
