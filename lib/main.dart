@@ -14,9 +14,73 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SplashScreen(),
+      // --- بداية الثيم الشامل (Global Theme) ---
+      theme: ThemeData(
+        useMaterial3: true,
+        scaffoldBackgroundColor: Colors.grey.shade50, // خلفية التطبيق الفاتحة والمريحة
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1E3A8A), // أزرق داكن (Navy Blue) كطابع طبي احترافي
+          secondary: const Color(0xFF0F766E), // أخضر مزرق (Teal) للمسات الثانوية
+        ),
+        
+        // 1. توحيد شكل حقول الإدخال (Text Fields)
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 2),
+          ),
+          labelStyle: TextStyle(color: Colors.grey.shade600),
+          prefixIconColor: Colors.grey.shade500,
+        ),
+
+        // 2. توحيد البطاقات (Cards)
+        cardTheme: CardTheme(
+          color: Colors.white,
+          elevation: 3,
+          shadowColor: Colors.black.withOpacity(0.15), // ظل ناعم ومنتشر
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+
+        // 3. توحيد الأزرار الرئيسية (Elevated Buttons)
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1E3A8A),
+            foregroundColor: Colors.white,
+            elevation: 2,
+            shadowColor: const Color(0xFF1E3A8A).withOpacity(0.5),
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+
+        // 4. توحيد شريط العناوين (App Bar)
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Color(0xFF1E3A8A),
+          foregroundColor: Colors.white,
+        ),
+      ),
+      // --- نهاية الثيم الشامل ---
+      
+      home: const SplashScreen(),
     );
   }
 }
@@ -54,19 +118,15 @@ class _SplashScreenState extends State<SplashScreen> {
         statusText = "Connected Successfully!";
       });
 
-      // انتظار ثانية واحدة لتظهر رسالة النجاح للمستخدم
       await Future.delayed(const Duration(seconds: 1));
 
-      // فحص حالة تسجيل الدخول وتوجيه المستخدم تلقائياً
       if (mounted) {
         User? user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          // المستخدم مسجل دخوله مسبقاً -> الذهاب للشاشة الرئيسية
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const HomeScreen()), // استبدل HomeScreen باسم شاشتك
+            MaterialPageRoute(builder: (context) => const HomeScreen()), 
           );
         } else {
-          // لا يوجد مستخدم مسجل -> الذهاب لشاشة الدخول
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => const LoginScreen()),
           );
@@ -83,21 +143,41 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blue,
-      body: Center(
+      body: Container(
+        width: double.infinity,
+        // إضافة تدرج لوني احترافي لخلفية الشاشة الافتتاحية
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF0F172A), // لون كحلي غامق
+              Color(0xFF1E3A8A), // لون أزرق داكن
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.medical_services, size: 100, color: Colors.white),
-              const SizedBox(height: 20),
+              // حاوية دائرية للأيقونة تبرزها بشكل أجمل
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.medical_services, size: 90, color: Colors.white),
+              ),
+              const SizedBox(height: 24),
               const Text(
                 'Medical-Records_Pro',
                 style: TextStyle(
                   fontSize: 28,
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -105,12 +185,11 @@ class _SplashScreenState extends State<SplashScreen> {
               
               Text(
                 statusText,
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                style: const TextStyle(color: Colors.white70, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
 
-              // سيظل مؤشر التحميل يدور حتى يتم الانتقال التلقائي
               if (!isError)
                 const CircularProgressIndicator(color: Colors.white),
             ],
