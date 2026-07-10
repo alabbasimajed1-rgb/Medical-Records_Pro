@@ -16,17 +16,15 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   bool _isSaving = false;
 
-  // تعريف متحكمات النصوص لجميع الحقول
   late TextEditingController _nameController;
   late TextEditingController _ageController;
-  late TextEditingController _chiefComplaintController; // متحكم الشكوى الرئيسية
+  late TextEditingController _chiefComplaintController;
   late TextEditingController _historyController;
   late TextEditingController _investigationController;
   late TextEditingController _diffDiagnosisController;
   late TextEditingController _finalDiagnosisController;
   late TextEditingController _treatmentController;
   
-  // متغير لتحديد النوع (افتراضياً ذكر)
   String _selectedGender = 'Male';
 
   @override
@@ -34,7 +32,6 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
     super.initState();
     _nameController = TextEditingController(text: widget.patient?.fullName ?? '');
     _ageController = TextEditingController(text: widget.patient?.age.toString() ?? '');
-    // إضافة الشكوى الرئيسية
     _chiefComplaintController = TextEditingController(text: widget.patient?.chiefComplaint ?? '');
     _historyController = TextEditingController(text: widget.patient?.medicalHistory ?? '');
     _investigationController = TextEditingController(text: widget.patient?.investigationAndImaging ?? '');
@@ -42,7 +39,6 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
     _finalDiagnosisController = TextEditingController(text: widget.patient?.finalDiagnosis ?? '');
     _treatmentController = TextEditingController(text: widget.patient?.firstTreatmentPlan ?? '');
     
-    // جلب النوع إذا كنا في وضع التعديل
     if (widget.patient != null && (widget.patient!.gender == 'Male' || widget.patient!.gender == 'Female')) {
       _selectedGender = widget.patient!.gender;
     }
@@ -52,7 +48,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
   void dispose() {
     _nameController.dispose();
     _ageController.dispose();
-    _chiefComplaintController.dispose(); // إغلاق المتحكم
+    _chiefComplaintController.dispose();
     _historyController.dispose();
     _investigationController.dispose();
     _diffDiagnosisController.dispose();
@@ -73,7 +69,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
           fullName: _nameController.text.trim(),
           age: int.parse(_ageController.text.trim()),
           gender: _selectedGender, 
-          chiefComplaint: _chiefComplaintController.text.trim(), // حفظ الشكوى الرئيسية
+          chiefComplaint: _chiefComplaintController.text.trim(), 
           medicalHistory: _historyController.text.trim(),
           investigationAndImaging: _investigationController.text.trim(),
           differentialDiagnosis: _diffDiagnosisController.text.trim(),
@@ -162,7 +158,6 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- القسم الأول: البيانات الديموغرافية ---
               const Text(
                 'Patient Information',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
@@ -172,7 +167,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Full Name',
+                  labelText: 'Full Name *',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.person),
                 ),
@@ -187,7 +182,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
                     child: TextFormField(
                       controller: _ageController,
                       decoration: const InputDecoration(
-                        labelText: 'Age',
+                        labelText: 'Age *',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.calendar_today, size: 20),
                       ),
@@ -206,7 +201,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
                     child: DropdownButtonFormField<String>(
                       value: _selectedGender,
                       decoration: const InputDecoration(
-                        labelText: 'Gender',
+                        labelText: 'Gender *',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.wc, size: 20),
                       ),
@@ -225,7 +220,6 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
               ),
               const Divider(height: 32, thickness: 1),
 
-              // --- القسم الجديد: الشكوى الرئيسية ---
               const Text(
                 'Chief Complaint',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
@@ -235,7 +229,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
               TextFormField(
                 controller: _chiefComplaintController,
                 decoration: const InputDecoration(
-                  labelText: 'Chief Complaint',
+                  labelText: 'Chief Complaint *',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
@@ -244,7 +238,6 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
               ),
               const Divider(height: 32, thickness: 1),
 
-              // --- القسم الثاني: التاريخ الطبي والفحوصات ---
               const Text(
                 'Clinical Data',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
@@ -254,7 +247,7 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
               TextFormField(
                 controller: _historyController,
                 decoration: const InputDecoration(
-                  labelText: 'Medical History',
+                  labelText: 'Medical History *',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
@@ -263,69 +256,66 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
               ),
               const SizedBox(height: 16),
 
+              // تمت إزالة الـ Validator من هنا وجعله اختيارياً
               TextFormField(
                 controller: _investigationController,
                 decoration: const InputDecoration(
-                  labelText: 'Investigation and Imaging Results',
+                  labelText: 'Investigation and Imaging Results (Optional)',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 5,
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
               ),
               const Divider(height: 32, thickness: 1),
 
-              // --- القسم الثالث: التشخيص ---
               const Text(
                 'Diagnosis',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
               ),
               const SizedBox(height: 12),
 
+              // تمت إزالة الـ Validator من هنا وجعله اختيارياً
               TextFormField(
                 controller: _diffDiagnosisController,
                 decoration: const InputDecoration(
-                  labelText: 'Differential Diagnosis',
+                  labelText: 'Differential Diagnosis (Optional)',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 2,
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 16),
 
+              // تمت إزالة الـ Validator من هنا وجعله اختيارياً
               TextFormField(
                 controller: _finalDiagnosisController,
                 decoration: const InputDecoration(
-                  labelText: 'Final Diagnosis',
+                  labelText: 'Final Diagnosis (Optional)',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 2,
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
               ),
               const Divider(height: 32, thickness: 1),
 
-              // --- القسم الرابع: العلاج ---
               const Text(
                 'Management',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
               ),
               const SizedBox(height: 12),
 
+              // تمت إزالة الـ Validator من هنا وجعله اختيارياً
               TextFormField(
                 controller: _treatmentController,
                 decoration: const InputDecoration(
-                  labelText: 'Treatments (First Treatment Plan)',
+                  labelText: 'Treatments / First Treatment Plan (Optional)',
                   border: OutlineInputBorder(),
                   alignLabelWithHint: true,
                 ),
                 maxLines: 4,
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 32),
 
-              // زر الحفظ بتصميم بارز
               ElevatedButton(
                 onPressed: _isSaving ? null : _save,
                 style: ElevatedButton.styleFrom(
