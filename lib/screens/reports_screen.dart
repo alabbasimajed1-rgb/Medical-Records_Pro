@@ -52,7 +52,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     try {
       Query visitsQueryRef = FirebaseFirestore.instance.collection('visits');
 
-      // فلترة التواريخ من السيرفر (إذا تم تحديد تاريخ)
       if (_dateRange != null) {
         visitsQueryRef = visitsQueryRef
             .where('visitDate', isGreaterThanOrEqualTo: _dateRange!.start.toIso8601String())
@@ -61,12 +60,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       final visitsQuery = await visitsQueryRef.get();
 
-      // **تم تصحيح الخطأ في هذا السطر**
       var visits = visitsQuery.docs
           .map((doc) => Visit.fromMap(doc.id, doc.data() as Map<String, dynamic>))
           .toList();
 
-      // فلترة محلية للمريض المختار (لتجنب مشاكل الـ Indexing في فايربيس)
       if (_selectedPatient != null) {
         visits = visits.where((v) => v.patientId == _selectedPatient!.id).toList();
       }
@@ -83,15 +80,37 @@ class _ReportsScreenState extends State<ReportsScreen> {
         return;
       }
 
-      // ترتيب الزيارات من الأحدث للأقدم
       visits.sort((a, b) => b.visitDate.compareTo(a.visitDate));
 
-      final pdf = pw.Document();
+      // تحميل خط يدعم اللغة العربية
+      final arabicFont = await PdfGoogleFonts.cairoRegular();
+      final arabicFontBold = await PdfGoogleFonts.cairoBold();
+
+      final pdf = pw.Document(
+        theme: pw.ThemeData.withFont(
+          base: arabicFont,
+          bold: arabicFontBold,
+        ),
+      );
       
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
           margin: const pw.EdgeInsets.all(32),
+          // إضافة التوقيع في ذيل الصفحة
+          footer: (pw.Context context) {
+            return pw.Container(
+              alignment: pw.Alignment.centerRight,
+              margin: const pw.EdgeInsets.only(top: 20.0),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.end,
+                children: [
+                  pw.Text('Dr. Majed Abbas', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
+                  pw.Text('Consultant Anesthesia & Intensive Care', style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                ]
+              )
+            );
+          },
           build: (ctx) => [
             pw.Header(
               level: 0,
@@ -99,39 +118,43 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 crossAxisAlignment: pw.CrossAxisAlignment.center,
                 children: [
                   pw.Text(
-                    _selectedPatient != null ? 'PATIENT MEDICAL RECORD' : 'CLINICAL VISITS REPORT', 
+                    _selectedPatient != null ? 'PATIENT MEDICAL REPORT' : 'CLINICAL VISITS REPORT', 
                     style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)
                   ),
                   pw.SizedBox(height: 8),
-                  pw.Text('Dr. Majed Abbas', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-                  pw.Text('Consultant Anesthesia & Intensive Care', style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
-                  pw.SizedBox(height: 12),
+                  // السطر الجديد الذي طلبته
+                  pw.Text('To whom it may concern,', style: pw.TextStyle(fontSize: 14, fontStyle: pw.FontStyle.italic, color: PdfColors.grey800)),
+                  pw.SizedBox(height: 16),
                   
-                  // معلومات المريض إذا تم اختياره
                   if (_selectedPatient != null) ...[
                     pw.Container(
                       width: double.infinity,
-                      padding: const pw.EdgeInsets.all(10),
+                      padding: const pw.EdgeInsets.all(12),
                       decoration: pw.BoxDecoration(
                         color: PdfColors.grey100,
                         border: pw.Border.all(color: PdfColors.grey400),
                         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
                       ),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text('Patient Name: ${_selectedPatient!.fullName}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-                          pw.SizedBox(height: 4),
-                          pw.Text('Age: ${_selectedPatient!.age} | Gender: ${_selectedPatient!.gender}'),
-                          pw.SizedBox(height: 4),
-                          pw.Text('Chief Complaint: ${_selectedPatient!.chiefComplaint}', style: pw.TextStyle(fontStyle: pw.FontStyle.italic, color: PdfColors.grey800)),
-                        ]
+                      child: pw.Directionality(
+                        textDirection: pw.TextDirection.rtl, // لدعم القراءة من اليمين لليسار للعربي
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Directionality(
+                              textDirection: pw.TextDirection.ltr,
+                              child: pw.Text('Patient Name: ${_selectedPatient!.fullName}  |  Age: ${_selectedPatient!.age}  |  Gender: ${_selectedPatient!.gender}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13)),
+                            ),
+                            pw.SizedBox(height: 8),
+                            pw.Text('Chief Complaint: ${_selectedPatient!.chiefComplaint}', style: pw.TextStyle(color: PdfColors.grey800)),
+                            pw.SizedBox(height: 4),
+                            pw.Text('Medical History: ${_selectedPatient!.medicalHistory}', style: pw.TextStyle(color: PdfColors.grey800)),
+                          ]
+                        ),
                       )
                     ),
                     pw.SizedBox(height: 12),
                   ],
 
-                  // إظهار فترة التاريخ إذا تم تحديدها
                   if (_dateRange != null)
                     pw.Container(
                       padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -149,7 +172,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
             ),
             
-            // جدول الزيارات
             ...visits.map((v) => pw.Container(
                   margin: const pw.EdgeInsets.only(bottom: 15),
                   padding: const pw.EdgeInsets.all(12),
@@ -157,34 +179,40 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     border: pw.Border.all(color: PdfColors.grey400),
                     borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
                   ),
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text('Visit Date: ${v.visitDate.toString().substring(0, 10)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                      pw.Divider(color: PdfColors.grey300),
-                      pw.SizedBox(height: 5),
-                      
-                      pw.Text('New complaint / Procedure:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
-                      pw.Text(v.procedure),
-                      pw.SizedBox(height: 8),
-                      
-                      if (v.investigations.isNotEmpty) ...[
-                        pw.Text('Investigations:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
-                        pw.Text(v.investigations),
+                  child: pw.Directionality(
+                    textDirection: pw.TextDirection.rtl, // لدعم النصوص العربية داخل الزيارات
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Directionality(
+                          textDirection: pw.TextDirection.ltr,
+                          child: pw.Text('Visit Date: ${v.visitDate.toString().substring(0, 10)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                        ),
+                        pw.Divider(color: PdfColors.grey300),
+                        pw.SizedBox(height: 5),
+                        
+                        pw.Text('New complaint / Procedure:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
+                        pw.Text(v.procedure),
                         pw.SizedBox(height: 8),
-                      ],
-                      
-                      if (v.treatments.isNotEmpty) ...[
-                        pw.Text('Treatments Prescribed:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
-                        pw.Text(v.treatments),
-                        pw.SizedBox(height: 8),
-                      ],
+                        
+                        if (v.investigations.isNotEmpty) ...[
+                          pw.Text('Investigations:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
+                          pw.Text(v.investigations),
+                          pw.SizedBox(height: 8),
+                        ],
+                        
+                        if (v.treatments.isNotEmpty) ...[
+                          pw.Text('Treatments Prescribed:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
+                          pw.Text(v.treatments),
+                          pw.SizedBox(height: 8),
+                        ],
 
-                      if (v.advices.isNotEmpty) ...[
-                        pw.Text('Advices:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
-                        pw.Text(v.advices),
+                        if (v.advices.isNotEmpty) ...[
+                          pw.Text('Advices:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
+                          pw.Text(v.advices),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 )),
           ],
@@ -244,7 +272,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
               const SizedBox(height: 32),
               
-              // 1. بطاقة اختيار المريض
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -298,7 +325,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
               const SizedBox(height: 16),
 
-              // 2. بطاقة اختيار التاريخ
               Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -330,7 +356,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
               
               const SizedBox(height: 32),
               
-              // 3. زر توليد التقرير
               SizedBox(
                 width: double.infinity,
                 height: 55,
