@@ -12,7 +12,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isPasswordVisible = false; // متغير للتحكم في ظهور كلمة المرور
+  bool _isPasswordVisible = false;
 
   Future<void> _login() async {
     try {
@@ -29,54 +29,88 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
+  // تصميم موحد لحقول الإدخال
+  InputDecoration _buildInputDecoration(String label, IconData icon, {Widget? suffixIcon}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.grey.shade600),
+      filled: true,
+      fillColor: Colors.white,
+      prefixIcon: Icon(icon, color: const Color(0xFF1E3A8A)),
+      suffixIcon: suffixIcon,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC), // خلفية ناعمة تتناسب مع التطبيق
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.medical_services, size: 80, color: Colors.blue.shade700),
-              const SizedBox(height: 16),
-              Text(
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.medical_services_rounded, size: 70, color: Color(0xFF1E3A8A)),
+              ),
+              const SizedBox(height: 20),
+              const Text(
                 'Medical Records',
                 style: TextStyle(
                   fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1E3A8A),
+                  letterSpacing: 0.5,
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sign in to access your clinic',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 40),
+              
               TextField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
-                ),
+                keyboardType: TextInputType.emailAddress,
+                decoration: _buildInputDecoration('Email Address', Icons.email_outlined),
               ),
               const SizedBox(height: 16),
+              
               TextField(
                 controller: _passwordController,
-                obscureText: !_isPasswordVisible, // إخفاء أو إظهار النص
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock),
-                  // إضافة أيقونة العين
+                obscureText: !_isPasswordVisible,
+                decoration: _buildInputDecoration(
+                  'Password', 
+                  Icons.lock_outline,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                      color: Colors.grey,
+                      color: Colors.grey.shade500,
                     ),
                     onPressed: () {
                       setState(() {
@@ -86,25 +120,33 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
+              
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 55, // ارتفاع مناسب يمنع اقتصاص النص
                 child: ElevatedButton(
                   onPressed: _login,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade700,
+                    backgroundColor: const Color(0xFF1E3A8A),
                     foregroundColor: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
-                  child: const Text('Login', style: TextStyle(fontSize: 18)),
+                  child: const Text(
+                    'Login', 
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1),
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              // زر الانتقال لشاشة إنشاء حساب جديد
+              const SizedBox(height: 24),
+              
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text("Don't have an account?"),
+                  Text("Don't have an account?", style: TextStyle(color: Colors.grey.shade600)),
                   TextButton(
                     onPressed: () {
                       Navigator.push(
@@ -112,11 +154,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         MaterialPageRoute(builder: (context) => const SignUpScreen()),
                       );
                     },
-                    child: Text(
+                    child: const Text(
                       'Sign Up',
                       style: TextStyle(
-                        color: Colors.blue.shade700,
+                        color: Color(0xFF1E3A8A),
                         fontWeight: FontWeight.bold,
+                        fontSize: 15,
                       ),
                     ),
                   ),
@@ -131,7 +174,7 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 // ==========================================
-// شاشة إنشاء حساب جديد (مدمجة في نفس الملف لتسهيل العمل)
+// شاشة إنشاء حساب جديد 
 // ==========================================
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -152,7 +195,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         password: _passwordController.text.trim(),
       );
       if (mounted) {
-        // بعد إنشاء الحساب بنجاح، يتم توجيهك مباشرة للشاشة الرئيسية
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -162,21 +204,46 @@ class _SignUpScreenState extends State<SignUpScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(content: Text('Error: ${e.toString()}'), backgroundColor: Colors.red),
         );
       }
     }
   }
 
+  // تصميم موحد لحقول الإدخال
+  InputDecoration _buildInputDecoration(String label, IconData icon, {Widget? suffixIcon}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.grey.shade600),
+      filled: true,
+      fillColor: Colors.white,
+      prefixIcon: Icon(icon, color: const Color(0xFF1E3A8A)),
+      suffixIcon: suffixIcon,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Create Account'),
-        backgroundColor: Colors.blue.shade700,
+        title: const Text('Create Account', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -184,28 +251,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.person_add_alt_1, size: 80, color: Colors.blue.shade700),
-              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person_add_alt_1_rounded, size: 60, color: Color(0xFF1E3A8A)),
+              ),
+              const SizedBox(height: 32),
+              
               TextField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'New Email',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
-                ),
+                keyboardType: TextInputType.emailAddress,
+                decoration: _buildInputDecoration('New Email', Icons.email_outlined),
               ),
               const SizedBox(height: 16),
+              
               TextField(
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
-                decoration: InputDecoration(
-                  labelText: 'New Password (min 6 chars)',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock),
+                decoration: _buildInputDecoration(
+                  'New Password (min 6 chars)', 
+                  Icons.lock_outline,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                      color: Colors.grey,
+                      color: Colors.grey.shade500,
                     ),
                     onPressed: () {
                       setState(() {
@@ -216,16 +288,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 32),
+              
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: 55,
                 child: ElevatedButton(
                   onPressed: _signUp,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade600,
+                    backgroundColor: const Color(0xFF0F766E), // لون أخضر مزرق لزر الإنشاء
                     foregroundColor: Colors.white,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
-                  child: const Text('Sign Up', style: TextStyle(fontSize: 18)),
+                  child: const Text(
+                    'Sign Up', 
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1),
+                  ),
                 ),
               ),
             ],
