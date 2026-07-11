@@ -47,7 +47,7 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
           .get();
       if (doc.exists && mounted) {
         setState(() {
-          _patient = Patient.fromMap(doc.id, doc.data()!);
+          _patient = Patient.fromMap(doc.id, doc.data() as Map<String, dynamic>);
         });
       }
     } catch (e) {
@@ -55,34 +55,83 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
     }
   }
 
-  // أداة مساعدة لعرض العناوين والنصوص بشكل مرتب
-  Widget _buildInfoSection(String title, String content, IconData icon) {
-    if (content.isEmpty) return const SizedBox.shrink();
+  // --- أداة مساعدة لبناء بطاقات مقسمة واحترافية ---
+  Widget _buildSectionCard({required String title, required IconData icon, required List<Widget> children}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 20, color: Colors.blue.shade800),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.blue.shade900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
+            const SizedBox(height: 16),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- أداة مساعدة لعرض الحقول بدقة (تسلسل هرمي بصري) ---
+  Widget _buildDataField(String label, String value) {
+    if (value.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: Colors.blue.shade700),
-              const SizedBox(width: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade900,
-                ),
-              ),
-            ],
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade500,
+              letterSpacing: 0.8,
+            ),
           ),
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.only(left: 26.0),
-            child: Text(
-              content,
-              style: const TextStyle(fontSize: 15, color: Colors.black87),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF1E293B), // أسود مزرق داكن جداً للقراءة المريحة
+              height: 1.4,
             ),
           ),
         ],
@@ -93,240 +142,280 @@ class _PatientDetailsScreenState extends State<PatientDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC), // خلفية رمادية فاتحة جداً لإبراز البطاقات البيضاء
       appBar: AppBar(
-        title: const Text('Patient File'),
-        backgroundColor: Colors.blue,
+        title: const Text('Patient Record', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_document),
+            icon: const Icon(Icons.edit_note, size: 28),
             onPressed: _editPatient,
-            tooltip: 'Edit Patient Info',
+            tooltip: 'Edit Profile',
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- بطاقة معلومات المريض الشاملة ---
-            Card(
-              margin: const EdgeInsets.all(16),
-              elevation: 3,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // الرأس: الاسم والعمر والنوع
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 32,
-                          backgroundColor: Colors.blue.shade100,
-                          child: Text(
-                            _patient.fullName.isNotEmpty
-                                ? _patient.fullName[0].toUpperCase()
-                                : '?',
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _patient.fullName,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade200,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text('Age: ${_patient.age}'),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: _patient.gender == 'Female' ? Colors.pink.shade50 : Colors.blue.shade50,
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      _patient.gender,
-                                      style: TextStyle(
-                                        color: _patient.gender == 'Female' ? Colors.pink.shade700 : Colors.blue.shade700,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 32, thickness: 1),
-
-                    // التفاصيل السريرية
-                    _buildInfoSection('Medical History', _patient.medicalHistory, Icons.history),
-                    _buildInfoSection('Investigations & Imaging', _patient.investigationAndImaging, Icons.biotech),
-                    _buildInfoSection('Differential Diagnosis', _patient.differentialDiagnosis, Icons.device_unknown),
-                    _buildInfoSection('Final Diagnosis', _patient.finalDiagnosis, Icons.fact_check),
-                    _buildInfoSection('Initial Treatment Plan', _patient.firstTreatmentPlan, Icons.medication),
-                  ],
+            // --- 1. رأس الملف (البيانات الشخصية) ---
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+              decoration: const BoxDecoration(
+                color: Color(0xFF1E3A8A),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(32),
+                  bottomRight: Radius.circular(32),
                 ),
               ),
-            ),
-
-            // --- قسم الزيارات ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Clinical Visits',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade900,
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withOpacity(0.5), width: 3),
+                    ),
+                    child: CircleAvatar(
+                      radius: 36,
+                      backgroundColor: Colors.white,
+                      child: Text(
+                        _patient.fullName.isNotEmpty ? _patient.fullName[0].toUpperCase() : '?',
+                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                      ),
                     ),
                   ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => NewVisitScreen(patientId: _patient.id!),
+                  const SizedBox(width: 20),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _patient.fullName,
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
-                      ).then((_) => setState(() {}));
-                    },
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add Visit'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            _buildBadge(Icons.cake_outlined, '${_patient.age} Yrs'),
+                            const SizedBox(width: 12),
+                            _buildBadge(
+                              _patient.gender == 'Male' ? Icons.male : Icons.female, 
+                              _patient.gender,
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
+            
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- 2. بطاقة التقييم الأولي ---
+                  _buildSectionCard(
+                    title: 'Clinical Assessment',
+                    icon: Icons.assignment_ind_outlined,
+                    children: [
+                      _buildDataField('Chief Complaint', _patient.chiefComplaint),
+                      _buildDataField('Medical History', _patient.medicalHistory),
+                    ],
+                  ),
 
-            // قائمة الزيارات
-            StreamBuilder<List<Visit>>(
-              stream: _firestoreService.getVisitsForPatient(_patient.id!),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: Padding(
-                    padding: EdgeInsets.all(20.0),
-                    child: CircularProgressIndicator(),
-                  ));
-                }
-
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(
-                      child: Text(
-                        'No visits recorded yet',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
+                  // --- 3. بطاقة الفحوصات والتشخيص ---
+                  if (_patient.investigationAndImaging.isNotEmpty || _patient.differentialDiagnosis.isNotEmpty || _patient.finalDiagnosis.isNotEmpty)
+                    _buildSectionCard(
+                      title: 'Diagnostics & Investigations',
+                      icon: Icons.biotech_outlined,
+                      children: [
+                        _buildDataField('Investigations & Imaging', _patient.investigationAndImaging),
+                        _buildDataField('Differential Diagnosis', _patient.differentialDiagnosis),
+                        _buildDataField('Final Diagnosis', _patient.finalDiagnosis),
+                      ],
                     ),
-                  );
-                }
 
-                final visits = snapshot.data!;
+                  // --- 4. بطاقة الخطة العلاجية ---
+                  if (_patient.firstTreatmentPlan.isNotEmpty)
+                    _buildSectionCard(
+                      title: 'Management Plan',
+                      icon: Icons.medical_services_outlined,
+                      children: [
+                        _buildDataField('Initial Treatment', _patient.firstTreatmentPlan),
+                      ],
+                    ),
 
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: visits.length,
-                  itemBuilder: (context, index) {
-                    final visit = visits[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      elevation: 2,
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(12),
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.green.shade50,
-                          radius: 25,
-                          child: Icon(Icons.medical_services, color: Colors.green.shade600),
+                  const SizedBox(height: 16),
+
+                  // --- 5. قسم الزيارات السريرية ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Clinical Visits',
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.blue.shade900,
                         ),
-                        title: Text(
-                          visit.procedure,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 8.0), // تم تصحيح هذا السطر
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
-                                  const SizedBox(width: 4),
-                                  Text(visit.visitDate.toString().substring(0, 10)),
-                                ],
-                              ),
-                              if (visit.treatments.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.medication, size: 14, color: Colors.grey),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        visit.treatments,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-                        onTap: () {
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => VisitDetailsScreen(visit: visit),
+                              builder: (context) => NewVisitScreen(patientId: _patient.id!),
+                            ),
+                          ).then((_) => setState(() {}));
+                        },
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add Visit'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0F766E), // لون أخضر مزرق للتمييز
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // قائمة الزيارات
+                  StreamBuilder<List<Visit>>(
+                    stream: _firestoreService.getVisitsForPatient(_patient.id!),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: Padding(padding: EdgeInsets.all(20.0), child: CircularProgressIndicator()));
+                      }
+
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                      }
+
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade200, width: 2),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(Icons.event_busy, size: 48, color: Colors.grey.shade300),
+                              const SizedBox(height: 12),
+                              Text('No visits recorded yet', style: TextStyle(fontSize: 16, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final visits = snapshot.data!;
+
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: visits.length,
+                        itemBuilder: (context, index) {
+                          final visit = visits[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.grey.shade200),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => VisitDetailsScreen(visit: visit),
+                                  ),
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0F766E).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Icon(Icons.monitor_heart_outlined, color: Color(0xFF0F766E)),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            visit.procedure,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E293B)),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.calendar_month, size: 14, color: Colors.grey.shade500),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                visit.visitDate.toString().substring(0, 10),
+                                                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
+                                  ],
+                                ),
+                              ),
                             ),
                           );
                         },
-                      ),
-                    );
-                  },
-                );
-              },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
-            const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  // أداة مساعدة لشارات (Badges) العمر والنوع في الرأس
+  Widget _buildBadge(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(text, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
