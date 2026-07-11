@@ -82,7 +82,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
       visits.sort((a, b) => b.visitDate.compareTo(a.visitDate));
 
-      // تحميل خط يدعم اللغة العربية
+      // تحميل الخط لدعم اللغة العربية والإنجليزية بشكل منسق
       final arabicFont = await PdfGoogleFonts.cairoRegular();
       final arabicFontBold = await PdfGoogleFonts.cairoBold();
 
@@ -96,8 +96,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       pdf.addPage(
         pw.MultiPage(
           pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(32),
-          // إضافة التوقيع في ذيل الصفحة
+          margin: const pw.EdgeInsets.all(40),
+          // تذييل الصفحة (التوقيع)
           footer: (pw.Context context) {
             return pw.Container(
               alignment: pw.Alignment.centerRight,
@@ -105,13 +105,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
-                  pw.Text('Dr. Majed Abbas', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
-                  pw.Text('Consultant Anesthesia & Intensive Care', style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
+                  pw.Text('Dr. Majed Abbas', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14, color: PdfColors.black)),
+                  pw.Text('Consultant Anesthesia & Intensive Care', style: pw.TextStyle(fontSize: 11, color: PdfColors.grey700)),
                 ]
               )
             );
           },
           build: (ctx) => [
+            // الترويسة
             pw.Header(
               level: 0,
               child: pw.Column(
@@ -119,100 +120,112 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 children: [
                   pw.Text(
                     _selectedPatient != null ? 'PATIENT MEDICAL REPORT' : 'CLINICAL VISITS REPORT', 
-                    style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)
+                    style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)
                   ),
-                  pw.SizedBox(height: 8),
-                  // السطر الجديد الذي طلبته
-                  pw.Text('To whom it may concern,', style: pw.TextStyle(fontSize: 14, fontStyle: pw.FontStyle.italic, color: PdfColors.grey800)),
-                  pw.SizedBox(height: 16),
-                  
-                  if (_selectedPatient != null) ...[
-                    pw.Container(
-                      width: double.infinity,
-                      padding: const pw.EdgeInsets.all(12),
-                      decoration: pw.BoxDecoration(
-                        color: PdfColors.grey100,
-                        border: pw.Border.all(color: PdfColors.grey400),
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-                      ),
-                      child: pw.Directionality(
-                        textDirection: pw.TextDirection.rtl, // لدعم القراءة من اليمين لليسار للعربي
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Directionality(
-                              textDirection: pw.TextDirection.ltr,
-                              child: pw.Text('Patient Name: ${_selectedPatient!.fullName}  |  Age: ${_selectedPatient!.age}  |  Gender: ${_selectedPatient!.gender}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 13)),
-                            ),
-                            pw.SizedBox(height: 8),
-                            pw.Text('Chief Complaint: ${_selectedPatient!.chiefComplaint}', style: pw.TextStyle(color: PdfColors.grey800)),
-                            pw.SizedBox(height: 4),
-                            pw.Text('Medical History: ${_selectedPatient!.medicalHistory}', style: pw.TextStyle(color: PdfColors.grey800)),
-                          ]
-                        ),
-                      )
-                    ),
-                    pw.SizedBox(height: 12),
-                  ],
-
-                  if (_dateRange != null)
-                    pw.Container(
-                      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: pw.BoxDecoration(
-                        color: PdfColors.grey200,
-                        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-                      ),
-                      child: pw.Text(
-                        'Period: ${_dateRange!.start.toString().substring(0, 10)}  TO  ${_dateRange!.end.toString().substring(0, 10)}',
-                        style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
-                      ),
-                    ),
-                  pw.SizedBox(height: 20),
+                  pw.SizedBox(height: 6),
+                  pw.Text('To whom it may concern,', style: pw.TextStyle(fontSize: 12, fontStyle: pw.FontStyle.italic, color: PdfColors.grey800)),
+                  pw.SizedBox(height: 24),
                 ],
               ),
             ),
             
+            // بيانات المريض الأساسية والسريرية (تظهر فقط إذا تم تحديد مريض)
+            if (_selectedPatient != null) ...[
+              // 1. صندوق البيانات الديموغرافية (Demographic Box)
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey100,
+                  border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Patient Name: ${_selectedPatient!.fullName}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                    pw.Text('Age: ${_selectedPatient!.age}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                    pw.Text('Gender: ${_selectedPatient!.gender}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
+                  ]
+                )
+              ),
+              pw.SizedBox(height: 20),
+
+              // 2. قسم البيانات السريرية (Clinical Summary)
+              pw.Text('CLINICAL SUMMARY', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
+              pw.Divider(color: PdfColors.blue800, thickness: 1),
+              pw.SizedBox(height: 10),
+
+              // الشكوى الرئيسية
+              pw.Text('Chief Complaint:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blueGrey800)),
+              pw.SizedBox(height: 2),
+              pw.Text(_selectedPatient!.chiefComplaint, style: const pw.TextStyle(fontSize: 11, lineSpacing: 1.5)),
+              pw.SizedBox(height: 12),
+
+              // التاريخ المرضي
+              pw.Text('Medical History (Clinical Data):', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11, color: PdfColors.blueGrey800)),
+              pw.SizedBox(height: 2),
+              pw.Text(_selectedPatient!.medicalHistory, style: const pw.TextStyle(fontSize: 11, lineSpacing: 1.5)),
+              pw.SizedBox(height: 24),
+
+              // 3. قسم الزيارات
+              pw.Text('VISIT RECORDS', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
+              pw.Divider(color: PdfColors.blue800, thickness: 1),
+              pw.SizedBox(height: 10),
+            ],
+
+            // إظهار فترة التاريخ إذا تم تحديدها عامة
+            if (_dateRange != null && _selectedPatient == null) ...[
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: pw.BoxDecoration(
+                  color: PdfColors.grey200,
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+                ),
+                child: pw.Text(
+                  'Period: ${_dateRange!.start.toString().substring(0, 10)}  TO  ${_dateRange!.end.toString().substring(0, 10)}',
+                  style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 20),
+            ],
+            
+            // جدول الزيارات
             ...visits.map((v) => pw.Container(
-                  margin: const pw.EdgeInsets.only(bottom: 15),
+                  margin: const pw.EdgeInsets.only(bottom: 12),
                   padding: const pw.EdgeInsets.all(12),
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(color: PdfColors.grey400),
+                    border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
                     borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
                   ),
-                  child: pw.Directionality(
-                    textDirection: pw.TextDirection.rtl, // لدعم النصوص العربية داخل الزيارات
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Directionality(
-                          textDirection: pw.TextDirection.ltr,
-                          child: pw.Text('Visit Date: ${v.visitDate.toString().substring(0, 10)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
-                        ),
-                        pw.Divider(color: PdfColors.grey300),
-                        pw.SizedBox(height: 5),
-                        
-                        pw.Text('New complaint / Procedure:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
-                        pw.Text(v.procedure),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Visit Date: ${v.visitDate.toString().substring(0, 10)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                      pw.Divider(color: PdfColors.grey300),
+                      pw.SizedBox(height: 5),
+                      
+                      pw.Text('New complaint / Procedure:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800, fontSize: 10)),
+                      pw.Text(v.procedure, style: const pw.TextStyle(fontSize: 11, lineSpacing: 1.2)),
+                      pw.SizedBox(height: 8),
+                      
+                      if (v.investigations.isNotEmpty) ...[
+                        pw.Text('Investigations:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800, fontSize: 10)),
+                        pw.Text(v.investigations, style: const pw.TextStyle(fontSize: 11, lineSpacing: 1.2)),
                         pw.SizedBox(height: 8),
-                        
-                        if (v.investigations.isNotEmpty) ...[
-                          pw.Text('Investigations:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
-                          pw.Text(v.investigations),
-                          pw.SizedBox(height: 8),
-                        ],
-                        
-                        if (v.treatments.isNotEmpty) ...[
-                          pw.Text('Treatments Prescribed:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
-                          pw.Text(v.treatments),
-                          pw.SizedBox(height: 8),
-                        ],
-
-                        if (v.advices.isNotEmpty) ...[
-                          pw.Text('Advices:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800)),
-                          pw.Text(v.advices),
-                        ],
                       ],
-                    ),
+                      
+                      if (v.treatments.isNotEmpty) ...[
+                        pw.Text('Treatments Prescribed:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800, fontSize: 10)),
+                        pw.Text(v.treatments, style: const pw.TextStyle(fontSize: 11, lineSpacing: 1.2)),
+                        pw.SizedBox(height: 8),
+                      ],
+
+                      if (v.advices.isNotEmpty) ...[
+                        pw.Text('Advices:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey800, fontSize: 10)),
+                        pw.Text(v.advices, style: const pw.TextStyle(fontSize: 11, lineSpacing: 1.2)),
+                      ],
+                    ],
                   ),
                 )),
           ],
