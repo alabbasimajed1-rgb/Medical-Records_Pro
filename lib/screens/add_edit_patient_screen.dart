@@ -3,7 +3,7 @@ import '../models/patient.dart';
 import '../services/firestore_service.dart';
 
 class AddEditPatientScreen extends StatefulWidget {
-  final Patient? patient; 
+  final Patient? patient;
 
   const AddEditPatientScreen({super.key, this.patient});
 
@@ -14,335 +14,323 @@ class AddEditPatientScreen extends StatefulWidget {
 class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
   final _formKey = GlobalKey<FormState>();
   final FirestoreService _firestoreService = FirestoreService();
-  bool _isSaving = false;
 
-  late TextEditingController _nameController;
-  late TextEditingController _ageController;
-  late TextEditingController _chiefComplaintController;
-  late TextEditingController _historyController;
-  late TextEditingController _investigationController;
-  late TextEditingController _diffDiagnosisController;
-  late TextEditingController _finalDiagnosisController;
-  late TextEditingController _treatmentController;
-  
-  String _selectedGender = 'Male';
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _ageController = TextEditingController();
+  String _gender = 'Male';
+  final TextEditingController _chiefComplaintController = TextEditingController();
+  final TextEditingController _medicalHistoryController = TextEditingController();
+  final TextEditingController _investigationsController = TextEditingController();
+  final TextEditingController _diffDiagnosisController = TextEditingController();
+  final TextEditingController _finalDiagnosisController = TextEditingController();
+  final TextEditingController _treatmentPlanController = TextEditingController();
+
+  bool _isLoading = false;
+
+  // --- القوالب الجاهزة المخصصة لاستشاري التخدير والعناية المركزة ---
+  final List<String> _chiefComplaintTpl = ['Pre-op Assessment', 'Post-op complication', 'Shortness of breath', 'Decreased LOC', 'Trauma', 'Sepsis', 'Abdominal pain', 'Chest pain'];
+  final List<String> _historyTpl = ['HTN', 'DM Type 2', 'IHD', 'Asthma', 'COPD', 'CKD', 'Smoker', 'No chronic illnesses'];
+  final List<String> _investigationsTpl = ['CBC', 'KFT', 'LFT', 'ECG', 'CXR', 'ABG', 'Coagulation Profile', 'Echocardiography', 'CT Brain'];
+  final List<String> _diagnosisTpl = ['Respiratory Failure', 'Septic Shock', 'Post-op Recovery', 'Acute Kidney Injury', 'Heart Failure', 'Pneumonia', 'Appendicitis'];
+  final List<String> _treatmentTpl = ['Admit to ICU', 'Mechanical Ventilation', 'Inotropic Support', 'IV Fluids Resuscitation', 'Broad-spectrum Antibiotics', 'Prepare for OR', 'Conservative Management'];
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.patient?.fullName ?? '');
-    _ageController = TextEditingController(text: widget.patient?.age.toString() ?? '');
-    _chiefComplaintController = TextEditingController(text: widget.patient?.chiefComplaint ?? '');
-    _historyController = TextEditingController(text: widget.patient?.medicalHistory ?? '');
-    _investigationController = TextEditingController(text: widget.patient?.investigationAndImaging ?? '');
-    _diffDiagnosisController = TextEditingController(text: widget.patient?.differentialDiagnosis ?? '');
-    _finalDiagnosisController = TextEditingController(text: widget.patient?.finalDiagnosis ?? '');
-    _treatmentController = TextEditingController(text: widget.patient?.firstTreatmentPlan ?? '');
-    
-    if (widget.patient != null && (widget.patient!.gender == 'Male' || widget.patient!.gender == 'Female')) {
-      _selectedGender = widget.patient!.gender;
+    if (widget.patient != null) {
+      _nameController.text = widget.patient!.fullName;
+      _ageController.text = widget.patient!.age.toString();
+      _gender = widget.patient!.gender;
+      _chiefComplaintController.text = widget.patient!.chiefComplaint;
+      _medicalHistoryController.text = widget.patient!.medicalHistory;
+      _investigationsController.text = widget.patient!.investigationAndImaging;
+      _diffDiagnosisController.text = widget.patient!.differentialDiagnosis;
+      _finalDiagnosisController.text = widget.patient!.finalDiagnosis;
+      _treatmentPlanController.text = widget.patient!.firstTreatmentPlan;
     }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _ageController.dispose();
-    _chiefComplaintController.dispose();
-    _historyController.dispose();
-    _investigationController.dispose();
-    _diffDiagnosisController.dispose();
-    _finalDiagnosisController.dispose();
-    _treatmentController.dispose();
-    super.dispose();
+  // دالة إضافة النص الذكي التراكمي
+  void _appendTemplate(TextEditingController controller, String text) {
+    final currentText = controller.text;
+    setState(() {
+      if (currentText.isEmpty) {
+        controller.text = text;
+      } else {
+        controller.text = '$currentText, $text';
+      }
+      controller.selection = TextSelection.fromPosition(TextPosition(offset: controller.text.length));
+    });
   }
 
-  Future<void> _save() async {
+  // أداة بناء شريط القوالب السريعة
+  Widget _buildTemplateChips(List<String> templates, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12.0),
+      child: Wrap(
+        spacing: 8.0,
+        runSpacing: 8.0,
+        children: templates.map((text) {
+          return ActionChip(
+            label: Text(
+              text, 
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E3A8A))
+            ),
+            backgroundColor: const Color(0xFF1E3A8A).withOpacity(0.06),
+            side: BorderSide(color: const Color(0xFF1E3A8A).withOpacity(0.15), width: 1),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            onPressed: () => _appendTemplate(controller, text),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // أداة بناء البطاقات البيضاء الفاخرة لتجميع الحقول
+  Widget _buildSectionCard({required String title, required IconData icon, required List<Widget> children}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 20, color: const Color(0xFF1E3A8A)),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ...children,
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _savePatient() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isSaving = true;
-      });
+      setState(() => _isLoading = true);
+
+      Patient newPatient = Patient(
+        id: widget.patient?.id,
+        fullName: _nameController.text.trim(),
+        age: int.tryParse(_ageController.text.trim()) ?? 0,
+        gender: _gender,
+        chiefComplaint: _chiefComplaintController.text.trim(),
+        medicalHistory: _medicalHistoryController.text.trim(),
+        investigationAndImaging: _investigationsController.text.trim(),
+        differentialDiagnosis: _diffDiagnosisController.text.trim(),
+        finalDiagnosis: _finalDiagnosisController.text.trim(),
+        firstTreatmentPlan: _treatmentPlanController.text.trim(),
+      );
 
       try {
-        final patient = Patient(
-          id: widget.patient?.id, 
-          fullName: _nameController.text.trim(),
-          age: int.parse(_ageController.text.trim()),
-          gender: _selectedGender, 
-          chiefComplaint: _chiefComplaintController.text.trim(), 
-          medicalHistory: _historyController.text.trim(),
-          investigationAndImaging: _investigationController.text.trim(),
-          differentialDiagnosis: _diffDiagnosisController.text.trim(),
-          finalDiagnosis: _finalDiagnosisController.text.trim(),
-          firstTreatmentPlan: _treatmentController.text.trim(),
-          firstVisitDate: widget.patient?.firstVisitDate ?? DateTime.now(), 
-        );
-
         if (widget.patient == null) {
-          await _firestoreService.addPatient(patient);
+          await _firestoreService.addPatient(newPatient);
         } else {
-          await _firestoreService.updatePatient(widget.patient!.id!, patient);
+          await _firestoreService.updatePatient(newPatient);
         }
-
         if (mounted) {
-          Navigator.pop(context, true); 
+          Navigator.pop(context, true);
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${e.toString()}')),
+            SnackBar(content: Text('Error saving patient: $e'), backgroundColor: Colors.red),
           );
         }
       } finally {
-        if (mounted) {
-          setState(() {
-            _isSaving = false;
-          });
-        }
+        setState(() => _isLoading = false);
       }
+    } else {
+      // إشعار المستخدم بوجود حقول إلزامية ناقصة
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all required (*) fields'), backgroundColor: Colors.orange),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = widget.patient != null;
-
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Patient Profile' : 'Add New Patient'),
-        backgroundColor: Colors.blue,
+        title: Text(widget.patient == null ? 'Add New Patient' : 'Edit Patient Profile', style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF1E3A8A),
         foregroundColor: Colors.white,
-        actions: [
-          if (isEditing)
-            IconButton(
-              icon: const Icon(Icons.delete, color: Colors.redAccent),
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Delete Patient'),
-                    content: Text(
-                      'Are you sure you want to delete ${_nameController.text}?',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-
-                if (confirm == true && mounted) {
-                  try {
-                    await _firestoreService.deletePatient(widget.patient!.id!);
-                    Navigator.pop(context, true);
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: ${e.toString()}')),
-                    );
-                  }
-                }
-              },
-            ),
-        ],
+        elevation: 0,
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Patient Information',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
-              ),
-              const SizedBox(height: 12),
-              
-              TextFormField(
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name *',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: TextFormField(
-                      controller: _ageController,
-                      decoration: const InputDecoration(
-                        labelText: 'Age *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.calendar_today, size: 20),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) return 'Required';
-                        final age = int.tryParse(value);
-                        if (age == null || age < 0 || age > 150) return 'Invalid';
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 1,
-                    child: DropdownButtonFormField<String>(
-                      value: _selectedGender,
-                      decoration: const InputDecoration(
-                        labelText: 'Gender *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.wc, size: 20),
-                      ),
-                        items: const [
-                        DropdownMenuItem(value: 'Male', child: Text('Male')),
-                        DropdownMenuItem(value: 'Female', child: Text('Female')),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF1E3A8A)))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    // --- 1. بطاقة البيانات الشخصية (إلزامية) ---
+                    _buildSectionCard(
+                      title: 'Personal Information *',
+                      icon: Icons.person_outline,
+                      children: [
+                        TextFormField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(labelText: 'Full Name *', prefixIcon: Icon(Icons.badge_outlined)),
+                          validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: TextFormField(
+                                controller: _ageController,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(labelText: 'Age *', prefixIcon: Icon(Icons.cake_outlined)),
+                                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 1,
+                              child: DropdownButtonFormField<String>(
+                                value: _gender,
+                                decoration: const InputDecoration(labelText: 'Gender *', prefixIcon: Icon(Icons.wc_outlined)),
+                                items: const [
+                                  DropdownMenuItem(value: 'Male', child: Text('Male')),
+                                  DropdownMenuItem(value: 'Female', child: Text('Female')),
+                                ],
+                                onChanged: (value) => setState(() => _gender = value!),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedGender = value!;
-                        });
-                      },
                     ),
-                  ),
-                ],
-              ),
-              const Divider(height: 32, thickness: 1),
 
-              const Text(
-                'Chief Complaint',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
-              ),
-              const SizedBox(height: 12),
+                    // --- 2. التقييم السريري الأولي ---
+                    _buildSectionCard(
+                      title: 'Clinical Assessment',
+                      icon: Icons.monitor_heart_outlined,
+                      children: [
+                        // الشكوى إلزامية
+                        TextFormField(
+                          controller: _chiefComplaintController,
+                          decoration: const InputDecoration(labelText: 'Chief Complaint *', alignLabelWithHint: true),
+                          maxLines: 2,
+                          validator: (value) => value == null || value.isEmpty ? 'Required to open a file' : null,
+                        ),
+                        _buildTemplateChips(_chiefComplaintTpl, _chiefComplaintController),
+                        const SizedBox(height: 24),
+                        
+                        // التاريخ المرضي اختياري
+                        TextFormField(
+                          controller: _medicalHistoryController,
+                          decoration: const InputDecoration(labelText: 'Medical History (Optional)', alignLabelWithHint: true),
+                          maxLines: 2,
+                        ),
+                        _buildTemplateChips(_historyTpl, _medicalHistoryController),
+                      ],
+                    ),
 
-              TextFormField(
-                controller: _chiefComplaintController,
-                decoration: const InputDecoration(
-                  labelText: 'Chief Complaint *',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 3,
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
-              ),
-              const Divider(height: 32, thickness: 1),
+                    // --- 3. التشخيص والفحوصات (اختياري) ---
+                    _buildSectionCard(
+                      title: 'Diagnostics (Optional)',
+                      icon: Icons.biotech_outlined,
+                      children: [
+                        TextFormField(
+                          controller: _investigationsController,
+                          decoration: const InputDecoration(labelText: 'Investigations & Imaging', alignLabelWithHint: true),
+                          maxLines: 2,
+                        ),
+                        _buildTemplateChips(_investigationsTpl, _investigationsController),
+                        const SizedBox(height: 24),
 
-              const Text(
-                'Clinical Data',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
-              ),
-              const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _diffDiagnosisController,
+                          decoration: const InputDecoration(labelText: 'Differential Diagnosis', alignLabelWithHint: true),
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 24),
 
-              TextFormField(
-                controller: _historyController,
-                decoration: const InputDecoration(
-                  labelText: 'Medical History *',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 3,
-                validator: (value) => (value == null || value.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _finalDiagnosisController,
+                          decoration: const InputDecoration(labelText: 'Final Diagnosis', alignLabelWithHint: true),
+                          maxLines: 2,
+                        ),
+                        _buildTemplateChips(_diagnosisTpl, _finalDiagnosisController),
+                      ],
+                    ),
 
-              // تمت إزالة الـ Validator من هنا وجعله اختيارياً
-              TextFormField(
-                controller: _investigationController,
-                decoration: const InputDecoration(
-                  labelText: 'Investigation and Imaging Results (Optional)',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 5,
-              ),
-              const Divider(height: 32, thickness: 1),
+                    // --- 4. الخطة العلاجية (اختياري) ---
+                    _buildSectionCard(
+                      title: 'Management Plan (Optional)',
+                      icon: Icons.medical_services_outlined,
+                      children: [
+                        TextFormField(
+                          controller: _treatmentPlanController,
+                          decoration: const InputDecoration(labelText: 'Initial Treatment Plan', alignLabelWithHint: true),
+                          maxLines: 3,
+                        ),
+                        _buildTemplateChips(_treatmentTpl, _treatmentPlanController),
+                      ],
+                    ),
 
-              const Text(
-                'Diagnosis',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
-              ),
-              const SizedBox(height: 12),
+                    const SizedBox(height: 16),
 
-              // تمت إزالة الـ Validator من هنا وجعله اختيارياً
-              TextFormField(
-                controller: _diffDiagnosisController,
-                decoration: const InputDecoration(
-                  labelText: 'Differential Diagnosis (Optional)',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-
-              // تمت إزالة الـ Validator من هنا وجعله اختيارياً
-              TextFormField(
-                controller: _finalDiagnosisController,
-                decoration: const InputDecoration(
-                  labelText: 'Final Diagnosis (Optional)',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 2,
-              ),
-              const Divider(height: 32, thickness: 1),
-
-              const Text(
-                'Management',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
-              ),
-              const SizedBox(height: 12),
-
-              // تمت إزالة الـ Validator من هنا وجعله اختيارياً
-              TextFormField(
-                controller: _treatmentController,
-                decoration: const InputDecoration(
-                  labelText: 'Treatments / First Treatment Plan (Optional)',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 32),
-
-              ElevatedButton(
-                onPressed: _isSaving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue, 
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  elevation: 2,
-                ),
-                child: _isSaving
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(
-                        isEditing ? 'Update Patient Profile' : 'Save Patient Profile',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    // --- زر الحفظ الفاخر ---
+                    SizedBox(
+                      width: double.infinity,
+                      height: 55,
+                      child: ElevatedButton.icon(
+                        onPressed: _savePatient,
+                        icon: const Icon(Icons.check_circle_outline, size: 24),
+                        label: Text(
+                          widget.patient == null ? 'Save Patient File' : 'Update Patient File',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0F766E), // أخضر مزرق لزر الحفظ
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 2,
+                        ),
                       ),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 }
