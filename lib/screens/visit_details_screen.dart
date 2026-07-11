@@ -29,32 +29,59 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
     _advicesController = TextEditingController(text: widget.visit.advices);
   }
 
+  @override
+  void dispose() {
+    _procedureController.dispose();
+    _investigationsController.dispose();
+    _treatmentsController.dispose();
+    _advicesController.dispose();
+    super.dispose();
+  }
+
   Future<void> _saveChanges() async {
+    // إنشاء كائن الزيارة المحدث
     Visit updatedVisit = Visit(
       id: widget.visit.id,
       patientId: widget.visit.patientId,
       visitDate: widget.visit.visitDate,
-      procedure: _procedureController.text,
-      investigations: _investigationsController.text,
-      treatments: _treatmentsController.text,
-      advices: _advicesController.text,
+      procedure: _procedureController.text.trim(),
+      investigations: _investigationsController.text.trim(),
+      treatments: _treatmentsController.text.trim(),
+      advices: _advicesController.text.trim(),
       nextVisitDate: widget.visit.nextVisitDate,
     );
 
-    await _firestoreService.updateVisit(updatedVisit);
-    setState(() => _isEditing = false);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Visit updated successfully!')));
+    try {
+      // تصحيح الاستدعاء بإرسال الـ ID ثم الكائن المحدث
+      await _firestoreService.updateVisit(widget.visit.id!, updatedVisit);
+      
+      if (mounted) {
+        setState(() => _isEditing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Visit updated successfully!'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating visit: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Visit Details'),
+        title: const Text('Visit Details', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF1E3A8A),
+        foregroundColor: Colors.white,
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: Icon(_isEditing ? Icons.save : Icons.edit),
+            icon: Icon(_isEditing ? Icons.save_rounded : Icons.edit_rounded),
             onPressed: () {
               if (_isEditing) {
                 _saveChanges();
@@ -69,10 +96,11 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            _buildField('Procedure', _procedureController),
-            _buildField('Investigations', _investigationsController),
-            _buildField('Treatments', _treatmentsController),
-            _buildField('Advices', _advicesController),
+            _buildField('Procedure / Intervention', _procedureController),
+            _buildField('Investigations & Labs', _investigationsController),
+            _buildField('Treatments & Medications', _treatmentsController),
+            _buildField('Medical Advices', _advicesController),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -86,11 +114,17 @@ class _VisitDetailsScreenState extends State<VisitDetailsScreen> {
         controller: controller,
         enabled: _isEditing,
         maxLines: null,
+        keyboardType: TextInputType.multiline,
         decoration: InputDecoration(
           labelText: label,
-          border: const OutlineInputBorder(),
+          labelStyle: TextStyle(color: _isEditing ? const Color(0xFF1E3A8A) : Colors.grey.shade600),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           filled: !_isEditing,
           fillColor: _isEditing ? Colors.white : Colors.grey.shade100,
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 2),
+          ),
         ),
       ),
     );
