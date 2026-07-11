@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart'; // ستحتاج لإضافة هذا في pubspec.yaml إذا أردت تنسيق التاريخ، أو سنستخدم طريقة مبسطة
 import '../services/firestore_service.dart';
 import 'add_edit_patient_screen.dart';
 import 'reports_screen.dart';
 import 'login_screen.dart';
-// افترض أن لديك شاشة لعرض قائمة المرضى (مثلاً patients_list_screen.dart)، استبدلها بالاسم الصحيح لديك
-// import 'patients_list_screen.dart'; 
+// تم التحديث بناءً على الصورة التي أرسلتها
+import 'patients_list_screen.dart'; 
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,7 +19,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   
-  // دوال تسجيل الخروج
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
     if (mounted) {
@@ -29,52 +28,56 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // --- أداة بناء بطاقات الإحصائيات العائمة ---
-  Widget _buildStatCard(String title, String count, IconData icon, Color color) {
+  // --- أداة بناء بطاقات الإحصائيات العائمة (قابلة للضغط) ---
+  Widget _buildStatCard(String title, String count, IconData icon, Color color, {VoidCallback? onTap}) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.15),
-              blurRadius: 15,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
+      child: InkWell(
+        onTap: onTap, 
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.15),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
               ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              count,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 24),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade500,
+              const SizedBox(height: 16),
+              Text(
+                count,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -119,7 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // الحصول على تاريخ اليوم وتنسيقه
     final now = DateTime.now();
     final dateString = "${now.day} ${_getMonthName(now.month)} ${now.year}";
 
@@ -129,13 +131,13 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- 1. الترويسة الفاخرة (Header) ---
+            // --- 1. الترويسة الفاخرة ---
             Stack(
               clipBehavior: Clip.none,
               children: [
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(24, 60, 24, 80), // مساحة سفلية إضافية للبطاقات العائمة
+                  padding: const EdgeInsets.fromLTRB(24, 60, 24, 80),
                   decoration: const BoxDecoration(
                     color: Color(0xFF1E3A8A),
                     borderRadius: BorderRadius.only(
@@ -187,28 +189,39 @@ class _HomeScreenState extends State<HomeScreen> {
                 
                 // --- 2. البطاقات الإحصائية العائمة ---
                 Positioned(
-                  top: 170, // تحديد موقع البطاقات لتطفو بين الترويسة والخلفية
+                  top: 170,
                   left: 24,
                   right: 24,
                   child: Row(
                     children: [
-                      // إحصائية المرضى (Real-time)
                       StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance.collection('patients').snapshots(),
                         builder: (context, snapshot) {
                           String count = "0";
                           if (snapshot.hasData) count = snapshot.data!.docs.length.toString();
-                          return _buildStatCard('Total Patients', count, Icons.people_alt_rounded, const Color(0xFF3B82F6));
+                          return _buildStatCard(
+                            'Total Patients', 
+                            count, 
+                            Icons.people_alt_rounded, 
+                            const Color(0xFF3B82F6),
+                            // النقر هنا يفتح قائمة المرضى
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PatientsListScreen())), 
+                          );
                         },
                       ),
                       const SizedBox(width: 16),
-                      // إحصائية الزيارات (Real-time)
                       StreamBuilder<QuerySnapshot>(
                         stream: FirebaseFirestore.instance.collection('visits').snapshots(),
                         builder: (context, snapshot) {
                           String count = "0";
                           if (snapshot.hasData) count = snapshot.data!.docs.length.toString();
-                          return _buildStatCard('Total Visits', count, Icons.monitor_heart_rounded, const Color(0xFF10B981));
+                          return _buildStatCard(
+                            'Total Visits', 
+                            count, 
+                            Icons.monitor_heart_rounded, 
+                            const Color(0xFF10B981),
+                            onTap: () {}, 
+                          );
                         },
                       ),
                     ],
@@ -217,10 +230,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             
-            // مساحة فارغة لتعويض تداخل البطاقات العائمة
             const SizedBox(height: 120), 
 
-            // --- 3. الإجراءات السريعة (Quick Actions) ---
+            // --- 3. الإجراءات السريعة (تم إضافة أزرار القائمة والإعدادات) ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
@@ -240,19 +252,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisSpacing: 16,
                     mainAxisSpacing: 16,
                     shrinkWrap: true,
-                    childAspectRatio: 1.3,
+                    childAspectRatio: 1.2,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       _buildQuickAction(
                         'New Patient', 
                         Icons.person_add_alt_1_rounded, 
                         () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddEditPatientScreen())),
-                        isPrimary: true, // إبراز هذا الزر بلون مختلف
+                        isPrimary: true,
+                      ),
+                      _buildQuickAction(
+                        'My Patients', 
+                        Icons.view_list_rounded, 
+                        // استدعاء شاشة قائمة المرضى
+                        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PatientsListScreen())), 
                       ),
                       _buildQuickAction(
                         'Clinical Reports', 
                         Icons.analytics_rounded, 
                         () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
+                      ),
+                      _buildQuickAction(
+                        'Settings', 
+                        Icons.settings_rounded, 
+                        // استدعاء شاشة الإعدادات
+                        () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())), 
                       ),
                     ],
                   ),
@@ -266,7 +290,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // دالة بسيطة لتحويل رقم الشهر إلى نص
   String _getMonthName(int month) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1];
