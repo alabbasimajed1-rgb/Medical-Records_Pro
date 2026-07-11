@@ -144,6 +144,8 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
         fullName: _nameController.text.trim(),
         age: int.tryParse(_ageController.text.trim()) ?? 0,
         gender: _gender,
+        // تمت إضافة حقل التاريخ الإلزامي هنا
+        firstVisitDate: widget.patient?.firstVisitDate ?? DateTime.now(), 
         chiefComplaint: _chiefComplaintController.text.trim(),
         medicalHistory: _medicalHistoryController.text.trim(),
         investigationAndImaging: _investigationsController.text.trim(),
@@ -156,7 +158,8 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
         if (widget.patient == null) {
           await _firestoreService.addPatient(newPatient);
         } else {
-          await _firestoreService.updatePatient(newPatient);
+          // تم تصحيح دالة التعديل بإرسال الـ id أولاً
+          await _firestoreService.updatePatient(widget.patient!.id!, newPatient);
         }
         if (mounted) {
           Navigator.pop(context, true);
@@ -242,7 +245,6 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
                       title: 'Clinical Assessment',
                       icon: Icons.monitor_heart_outlined,
                       children: [
-                        // الشكوى إلزامية
                         TextFormField(
                           controller: _chiefComplaintController,
                           decoration: const InputDecoration(labelText: 'Chief Complaint *', alignLabelWithHint: true),
@@ -252,7 +254,6 @@ class _AddEditPatientScreenState extends State<AddEditPatientScreen> {
                         _buildTemplateChips(_chiefComplaintTpl, _chiefComplaintController),
                         const SizedBox(height: 24),
                         
-                        // التاريخ المرضي اختياري
                         TextFormField(
                           controller: _medicalHistoryController,
                           decoration: const InputDecoration(labelText: 'Medical History (Optional)', alignLabelWithHint: true),
